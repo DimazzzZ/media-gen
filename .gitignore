@@ -1,0 +1,27 @@
+# Zig build artifacts
+.zig-cache/
+zig-cache/
+zig-out/
+
+# Generated media files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.mp3
+*.wav
+*.aac
+*.flac
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log

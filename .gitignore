@@ -15,3 +15,19 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test artifacts
+test_*.mp4
+test_*.mp3
+test_*.avi
+test_*.wav
+test_*.flac
+*_test.*
+ci_test_*
+debug_test.*
+manual_*.*
+perf_test_*
+*.yamllint.yml
+
+# Build artifacts from build-all.sh
+media-gen-*

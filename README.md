@@ -144,6 +144,12 @@ See [.github/README.md](.github/README.md) for detailed CI/CD documentation.
 2. Create a feature branch
 3. Make your changes
 4. Run tests: `zig build test`
-5. Submit a pull request
+5. Validate workflows: `./scripts/validate-workflows.sh`
+6. Submit a pull request
 
 All PRs are automatically tested on Linux, Windows, and macOS.
+
+### Scripts
+
+- `build-all.sh` - Build for all platforms
+- `scripts/validate-workflows.sh` - Validate GitHub Actions workflows locally

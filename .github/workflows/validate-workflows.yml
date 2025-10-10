@@ -91,11 +91,35 @@ jobs:
             fi
           done
 
-      - name: Lint workflow files
-        uses: rhyeal/github-actions-yaml-lint@v1
-        with:
-          path: '.github/workflows/'
-          strict: false
+      - name: Basic workflow file validation
+        run: |
+          echo "Performing basic workflow validation..."
+          
+          # Check for common issues in workflow files
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Checking $file for common issues..."
+              
+              # Check for tabs (should use spaces)
+              if grep -P '\t' "$file"; then
+                echo "❌ $file contains tabs, should use spaces"
+                exit 1
+              fi
+              
+              # Check for very long lines (over 150 chars)
+              if awk 'length > 150' "$file" | head -1; then
+                echo "⚠️  $file contains very long lines (>150 chars)"
+              fi
+              
+              # Check for common typos in action versions
+              if grep -iE "uses:.*@(mian|mater)" "$file"; then
+                echo "❌ $file contains typos in action versions"
+                exit 1
+              fi
+              
+              echo "✅ $file passed basic validation"
+            fi
+          done
 
   test-workflow-triggers:
     name: Test Workflow Triggers

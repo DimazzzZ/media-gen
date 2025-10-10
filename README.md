@@ -2,6 +2,9 @@
 
 A command-line utility for generating test media files (video and audio) with customizable parameters.
 
+[![Build and Test](https://github.com/your-username/media-gen/actions/workflows/build.yml/badge.svg)](https://github.com/your-username/media-gen/actions/workflows/build.yml)
+[![Test Suite](https://github.com/your-username/media-gen/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/media-gen/actions/workflows/test.yml)
+
 ## Features
 
 - **Video generation** with countdown timer
@@ -21,6 +24,9 @@ A command-line utility for generating test media files (video and audio) with cu
 # Build for current platform
 zig build
 
+# Run tests
+zig build test
+
 # Run the executable
 ./zig-out/bin/media-gen help
 
@@ -28,6 +34,9 @@ zig build
 zig build -Dtarget=x86_64-windows
 zig build -Dtarget=x86_64-macos
 zig build -Dtarget=x86_64-linux
+
+# Build all platforms (using script)
+./build-all.sh
 ```
 
 ## Usage
@@ -104,3 +113,37 @@ zig build -Dtarget=x86_64-linux
 # Create web-optimized video
 ./media-gen video --width 854 --height 480 --bitrate 800k --format mp4 --output web_test.mp4
 ```
+
+## Development
+
+### Running Tests
+
+```bash
+# Run unit tests
+zig build test
+
+# Run integration tests (requires FFmpeg)
+./zig-out/bin/media-gen video --duration 2 --output test.mp4
+./zig-out/bin/media-gen audio --duration 2 --output test.mp3
+```
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration:
+
+- **Build and Test**: Runs on push/PR, builds for all platforms
+- **Manual Build**: Allows manual building for specific platforms
+- **Test Suite**: Comprehensive testing including performance tests
+- **Workflow Validation**: Validates CI/CD configuration files
+
+See [.github/README.md](.github/README.md) for detailed CI/CD documentation.
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `zig build test`
+5. Submit a pull request
+
+All PRs are automatically tested on Linux, Windows, and macOS.

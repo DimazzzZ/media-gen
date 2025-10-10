@@ -77,7 +77,7 @@ pub fn parseAndExecute(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     }
 }
 
-fn parseVideoArgs(args: [][:0]u8, config: *VideoConfig) !void {
+pub fn parseVideoArgs(args: [][:0]u8, config: *VideoConfig) !void {
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = args[i];
@@ -110,7 +110,7 @@ fn parseVideoArgs(args: [][:0]u8, config: *VideoConfig) !void {
     }
 }
 
-fn parseAudioArgs(args: [][:0]u8, config: *AudioConfig) !void {
+pub fn parseAudioArgs(args: [][:0]u8, config: *AudioConfig) !void {
     var i: usize = 0;
     while (i < args.len) : (i += 1) {
         const arg = args[i];

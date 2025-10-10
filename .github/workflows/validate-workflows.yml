@@ -1,0 +1,168 @@
+name: Validate Workflows
+
+on:
+  push:
+    paths:
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate GitHub Actions Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate workflow syntax
+        run: |
+          echo "Validating workflow files..."
+          
+          # Check if workflow files are valid YAML
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Validating $file"
+              python3 -c "
+          import yaml
+          import sys
+          try:
+              with open('$file', 'r') as f:
+                  yaml.safe_load(f)
+              print('✅ $file is valid YAML')
+          except yaml.YAMLError as e:
+              print('❌ $file has YAML syntax error:', e)
+              sys.exit(1)
+          except Exception as e:
+              print('❌ Error reading $file:', e)
+              sys.exit(1)
+              "
+            fi
+          done
+
+      - name: Check for common workflow issues
+        run: |
+          echo "Checking for common workflow issues..."
+          
+          # Check for missing required fields
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Checking $file for required fields..."
+              
+              if ! grep -q "^name:" "$file"; then
+                echo "❌ $file is missing 'name' field"
+                exit 1
+              fi
+              
+              if ! grep -q "^on:" "$file"; then
+                echo "❌ $file is missing 'on' field"
+                exit 1
+              fi
+              
+              if ! grep -q "^jobs:" "$file"; then
+                echo "❌ $file is missing 'jobs' field"
+                exit 1
+              fi
+              
+              echo "✅ $file has required fields"
+            fi
+          done
+
+      - name: Check for security best practices
+        run: |
+          echo "Checking for security best practices..."
+          
+          # Check for pinned action versions
+          for file in .github/workflows/*.yml .github/workflows/*.yaml; do
+            if [ -f "$file" ]; then
+              echo "Checking $file for pinned action versions..."
+              
+              # Look for unpinned actions (using @main, @master, etc.)
+              if grep -E "uses:.*@(main|master|latest)" "$file"; then
+                echo "⚠️  $file contains unpinned actions (consider using specific versions)"
+              fi
+              
+              # Check for secrets usage
+              if grep -q "secrets\." "$file"; then
+                echo "ℹ️  $file uses secrets (ensure they are properly configured)"
+              fi
+            fi
+          done
+
+      - name: Lint workflow files
+        uses: rhyeal/github-actions-yaml-lint@v1
+        with:
+          path: '.github/workflows/'
+          strict: false
+
+  test-workflow-triggers:
+    name: Test Workflow Triggers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test manual workflow dispatch
+        run: |
+          echo "Testing if manual workflows can be triggered..."
+          
+          # Check if manual-build.yml has workflow_dispatch
+          if grep -q "workflow_dispatch:" .github/workflows/manual-build.yml; then
+            echo "✅ manual-build.yml supports manual triggering"
+          else
+            echo "❌ manual-build.yml does not support manual triggering"
+            exit 1
+          fi
+
+      - name: Validate build matrix
+        run: |
+          echo "Validating build matrix configurations..."
+          
+          # Check if build workflows have proper matrix strategy
+          for file in .github/workflows/build.yml .github/workflows/manual-build.yml; do
+            if [ -f "$file" ]; then
+              if grep -q "strategy:" "$file" && grep -q "matrix:" "$file"; then
+                echo "✅ $file has matrix strategy"
+              else
+                echo "⚠️  $file might be missing matrix strategy"
+              fi
+            fi
+          done
+
+  check-dependencies:
+    name: Check Workflow Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check action versions
+        run: |
+          echo "Checking GitHub Actions versions..."
+          
+          # List all used actions
+          grep -r "uses:" .github/workflows/ | grep -v "^#" | sort | uniq
+          
+          echo ""
+          echo "Recommended to use specific versions instead of tags like @v4, @main, etc."
+
+      - name: Check for required tools
+        run: |
+          echo "Checking for required tools in workflows..."
+          
+          # Check if Zig setup is present
+          if grep -r "setup-zig" .github/workflows/; then
+            echo "✅ Zig setup found in workflows"
+          else
+            echo "❌ Zig setup not found in workflows"
+            exit 1
+          fi
+          
+          # Check if FFmpeg installation is present
+          if grep -r "ffmpeg" .github/workflows/; then
+            echo "✅ FFmpeg installation found in workflows"
+          else
+            echo "⚠️  FFmpeg installation not found in workflows"
+          fi

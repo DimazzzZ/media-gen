@@ -1,0 +1,176 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Run unit tests
+        run: zig build test
+
+      - name: Generate test coverage
+        run: |
+          zig build test --summary all 2>&1 | tee test_output.txt
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Install FFmpeg (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Install FFmpeg (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install ffmpeg
+
+      - name: Install FFmpeg (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install ffmpeg -y
+          echo "C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin" >> $GITHUB_PATH
+
+      - name: Build application
+        run: zig build
+
+      - name: Test video generation
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./zig-out/bin/media-gen.exe video --duration 2 --width 640 --height 480 --output test_video.mp4
+          else
+            ./zig-out/bin/media-gen video --duration 2 --width 640 --height 480 --output test_video.mp4
+          fi
+          
+          # Check if file exists and has reasonable size
+          if [[ ! -f test_video.mp4 ]]; then
+            echo "Video file was not created"
+            exit 1
+          fi
+          
+          file_size=$(stat -f%z test_video.mp4 2>/dev/null || stat -c%s test_video.mp4)
+          if [[ $file_size -lt 1000 ]]; then
+            echo "Video file is too small: $file_size bytes"
+            exit 1
+          fi
+          
+          echo "Video test passed: $file_size bytes"
+
+      - name: Test audio generation
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./zig-out/bin/media-gen.exe audio --duration 2 --sample-rate 44100 --output test_audio.mp3
+          else
+            ./zig-out/bin/media-gen audio --duration 2 --sample-rate 44100 --output test_audio.mp3
+          fi
+          
+          # Check if file exists and has reasonable size
+          if [[ ! -f test_audio.mp3 ]]; then
+            echo "Audio file was not created"
+            exit 1
+          fi
+          
+          file_size=$(stat -f%z test_audio.mp3 2>/dev/null || stat -c%s test_audio.mp3)
+          if [[ $file_size -lt 1000 ]]; then
+            echo "Audio file is too small: $file_size bytes"
+            exit 1
+          fi
+          
+          echo "Audio test passed: $file_size bytes"
+
+      - name: Test help command
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./zig-out/bin/media-gen.exe help
+          else
+            ./zig-out/bin/media-gen help
+          fi
+
+      - name: Test invalid command
+        shell: bash
+        run: |
+          set +e  # Don't exit on error
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            ./zig-out/bin/media-gen.exe invalid_command
+          else
+            ./zig-out/bin/media-gen invalid_command
+          fi
+          exit_code=$?
+          if [[ $exit_code -eq 0 ]]; then
+            echo "Expected non-zero exit code for invalid command"
+            exit 1
+          fi
+          echo "Invalid command test passed"
+
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Build application
+        run: zig build -Doptimize=ReleaseFast
+
+      - name: Performance test - Video generation
+        run: |
+          echo "Testing video generation performance..."
+          time ./zig-out/bin/media-gen video --duration 10 --output perf_test_video.mp4
+          
+          file_size=$(stat -c%s perf_test_video.mp4)
+          echo "Generated video size: $file_size bytes"
+
+      - name: Performance test - Audio generation
+        run: |
+          echo "Testing audio generation performance..."
+          time ./zig-out/bin/media-gen audio --duration 10 --output perf_test_audio.mp3
+          
+          file_size=$(stat -c%s perf_test_audio.mp3)
+          echo "Generated audio size: $file_size bytes"

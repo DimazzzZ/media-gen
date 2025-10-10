@@ -43,6 +43,7 @@ pub fn printHelp() !void {
     print("  --bitrate <bitrate>   Video bitrate (default: 1000k)\n", .{});
     print("  --format <format>     Output format (mp4, avi, mov, mkv)\n", .{});
     print("  --codec <codec>       Video codec (libx264, libx265, libvpx-vp9)\n", .{});
+
     print("  --output <filename>   Output filename (default: output.mp4)\n\n", .{});
     print("Audio options:\n", .{});
     print("  --duration <seconds>   Duration in seconds (default: 30)\n", .{});

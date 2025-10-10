@@ -10,10 +10,11 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
     print("  Bitrate: {s}\n", .{config.bitrate});
     print("  Format: {s}\n", .{config.format});
     print("  Codec: {s}\n", .{config.codec});
+
     print("  Output: {s}\n", .{config.output});
 
-    // Create input filter with countdown
-    const filter = try std.fmt.allocPrint(allocator, "color=c=black:size={}x{}:duration={}:rate={},drawtext=fontfile=/System/Library/Fonts/Arial.ttf:text='%{{eif\\:{}-%{{t}}\\:d}}':fontsize=72:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2", .{ config.width, config.height, config.duration, config.fps, config.duration });
+    // Create input filter with countdown timer - black background with large white numbers
+    const filter = try std.fmt.allocPrint(allocator, "color=c=black:size={}x{}:duration={}:rate={},drawtext=text='%{{eif\\:floor({}-t)\\:d}}.%{{eif\\:floor((({}-t)-floor({}-t))*100)\\:d\\:2}}':fontsize=200:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2", .{ config.width, config.height, config.duration, config.fps, config.duration, config.duration, config.duration });
     defer allocator.free(filter);
 
     // Build FFmpeg command array

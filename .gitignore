@@ -31,3 +31,6 @@ perf_test_*
 
 # Build artifacts from build-all.sh
 media-gen-*
+
+# Keep important files
+!LICENSE

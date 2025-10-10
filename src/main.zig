@@ -15,5 +15,10 @@ pub fn main() !void {
         return;
     }
 
-    try cli.parseAndExecute(allocator, args);
+    cli.parseAndExecute(allocator, args) catch |err| {
+        switch (err) {
+            error.UnknownCommand => std.process.exit(1),
+            else => return err,
+        }
+    };
 }

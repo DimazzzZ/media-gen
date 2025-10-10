@@ -74,6 +74,7 @@ pub fn parseAndExecute(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     } else {
         print("Unknown command: {s}\n", .{args[1]});
         try printHelp();
+        return error.UnknownCommand;
     }
 }
 

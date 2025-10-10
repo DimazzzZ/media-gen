@@ -1,155 +1,280 @@
 # Media Generator
 
-A command-line utility for generating test media files (video and audio) with customizable parameters.
+A fast, cross-platform command-line utility for generating test media files with customizable parameters. Perfect for testing applications, creating placeholder content, or generating media samples.
 
-[![Build and Test](https://github.com/your-username/media-gen/actions/workflows/build.yml/badge.svg)](https://github.com/your-username/media-gen/actions/workflows/build.yml)
-[![Test Suite](https://github.com/your-username/media-gen/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/media-gen/actions/workflows/test.yml)
+[![Build and Test](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml)
+[![Test Suite](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml)
 
-## Features
+## ✨ Features
 
-- **Video generation** with countdown timer
-- **Audio generation** with test tone
-- Support for various formats and codecs
-- Configurable resolution, bitrate, duration
-- Cross-platform (Windows, macOS, Linux)
+- 🎬 **Video generation** with animated countdown timer
+- 🎵 **Audio generation** with customizable test tones
+- 🎯 **Multiple formats** - MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
+- ⚙️ **Highly configurable** - resolution, bitrate, duration, codecs
+- 🚀 **Cross-platform** - Windows, macOS, Linux (Intel & ARM)
+- ⚡ **Fast** - Built with Zig for optimal performance
 
-## Requirements
+## 🚀 Quick Start
 
-- Zig 0.15+ for building
-- FFmpeg for media generation (must be installed on system)
+### Installation
 
-## Building
+Download the latest release for your platform:
+- [Linux x86_64](https://github.com/DimazzzZ/media-gen/releases/latest/download/media-gen-linux-x86_64)
+- [Windows x86_64](https://github.com/DimazzzZ/media-gen/releases/latest/download/media-gen-windows-x86_64.exe)
+- [macOS Intel](https://github.com/DimazzzZ/media-gen/releases/latest/download/media-gen-macos-x86_64)
+- [macOS ARM](https://github.com/DimazzzZ/media-gen/releases/latest/download/media-gen-macos-arm64)
+
+### Requirements
+
+- **FFmpeg** must be installed on your system
+  - **Ubuntu/Debian**: `sudo apt install ffmpeg`
+  - **macOS**: `brew install ffmpeg`
+  - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
+### Basic Usage
 
 ```bash
-# Build for current platform
+# Generate a 10-second countdown video
+./media-gen video --duration 10 --output countdown.mp4
+
+# Generate a 30-second audio test tone
+./media-gen audio --duration 30 --output test-tone.mp3
+
+# Show help
+./media-gen help
+```
+
+## 📖 Usage Guide
+
+### Video Generation
+
+Create test videos with animated countdown timers:
+
+```bash
+# Basic HD video (1920x1080, 30 seconds)
+./media-gen video --output my-video.mp4
+
+# Mobile-friendly video
+./media-gen video --width 720 --height 1280 --duration 15 --output mobile.mp4
+
+# High-quality video with custom settings
+./media-gen video \
+  --width 1920 --height 1080 \
+  --duration 60 \
+  --fps 60 \
+  --bitrate 5000k \
+  --codec libx265 \
+  --output hq-video.mp4
+
+# Different formats
+./media-gen video --format mov --output test.mov
+./media-gen video --format avi --output test.avi
+```
+
+### Audio Generation
+
+Create test audio files with sine wave tones:
+
+```bash
+# Basic audio (44.1kHz, 30 seconds)
+./media-gen audio --output my-audio.mp3
+
+# High-quality audio
+./media-gen audio \
+  --sample-rate 48000 \
+  --bitrate 320k \
+  --format wav \
+  --duration 120 \
+  --output hq-audio.wav
+
+# Professional audio formats
+./media-gen audio --sample-rate 96000 --format flac --output pro.flac
+./media-gen audio --format aac --output test.aac
+```
+
+## ⚙️ Configuration Options
+
+### Video Options
+
+| Option | Description | Default | Examples |
+|--------|-------------|---------|----------|
+| `--width` | Video width in pixels | 1920 | 1280, 1920, 3840 |
+| `--height` | Video height in pixels | 1080 | 720, 1080, 2160 |
+| `--duration` | Duration in seconds | 30 | 10, 60, 300 |
+| `--fps` | Frames per second | 30 | 24, 30, 60 |
+| `--bitrate` | Video bitrate | 1000k | 500k, 2000k, 10M |
+| `--format` | Output format | mp4 | mp4, avi, mov, mkv |
+| `--codec` | Video codec | libx264 | libx264, libx265, libvpx-vp9 |
+| `--output` | Output filename | output.mp4 | my-video.mp4 |
+
+### Audio Options
+
+| Option | Description | Default | Examples |
+|--------|-------------|---------|----------|
+| `--duration` | Duration in seconds | 30 | 10, 60, 300 |
+| `--sample-rate` | Sample rate in Hz | 44100 | 22050, 48000, 96000 |
+| `--bitrate` | Audio bitrate | 128k | 96k, 320k, 1411k |
+| `--format` | Output format | mp3 | mp3, wav, aac, flac |
+| `--codec` | Audio codec | libmp3lame | libmp3lame, pcm_s16le, aac |
+| `--output` | Output filename | output.mp3 | my-audio.mp3 |
+
+## 🎯 Use Cases
+
+### Testing & Development
+```bash
+# Quick test files for development
+./media-gen video --duration 5 --width 640 --height 480 --output dev-test.mp4
+./media-gen audio --duration 3 --output dev-test.mp3
+```
+
+### Mobile App Testing
+```bash
+# Portrait video for mobile
+./media-gen video --width 720 --height 1280 --duration 10 --output mobile-portrait.mp4
+
+# Landscape video for mobile
+./media-gen video --width 1280 --height 720 --duration 10 --output mobile-landscape.mp4
+```
+
+### Web Development
+```bash
+# Web-optimized video
+./media-gen video --width 854 --height 480 --bitrate 800k --output web-video.mp4
+
+# Compressed audio for web
+./media-gen audio --bitrate 96k --format mp3 --output web-audio.mp3
+```
+
+### Quality Assurance
+```bash
+# Various quality levels for testing
+./media-gen video --bitrate 500k --output low-quality.mp4
+./media-gen video --bitrate 2000k --output medium-quality.mp4
+./media-gen video --bitrate 8000k --output high-quality.mp4
+```
+
+## 🛠️ Building from Source
+
+### Prerequisites
+- [Zig 0.15+](https://ziglang.org/download/)
+- FFmpeg installed on your system
+
+### Build Commands
+```bash
+# Clone the repository
+git clone https://github.com/DimazzzZ/media-gen.git
+cd media-gen
+
+# Build for your platform
 zig build
 
 # Run tests
 zig build test
 
-# Run the executable
-./zig-out/bin/media-gen help
-
-# Cross-platform builds
-zig build -Dtarget=x86_64-windows
-zig build -Dtarget=x86_64-macos
-zig build -Dtarget=x86_64-linux
-
-# Build all platforms (using script)
+# Build for all platforms
 ./build-all.sh
 ```
 
-## Usage
-
-### Video Generation
-
+### Cross-compilation
 ```bash
-# Basic usage
-./media-gen video
+# Windows
+zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSafe
 
-# With custom settings
-./media-gen video --width 1280 --height 720 --duration 60 --bitrate 2000k --output test.mp4
+# macOS
+zig build -Dtarget=x86_64-macos -Doptimize=ReleaseSafe
+zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 
-# Different formats
-./media-gen video --format mov --codec libx265 --output test.mov
+# Linux
+zig build -Dtarget=x86_64-linux -Doptimize=ReleaseSafe
 ```
 
-### Audio Generation
+## 🤝 Contributing
 
+We welcome contributions! Here's how to get started:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Make** your changes
+4. **Test** your changes: `zig build test`
+5. **Validate** workflows: `./scripts/validate-workflows.sh`
+6. **Commit** your changes: `git commit -m 'Add amazing feature'`
+7. **Push** to the branch: `git push origin feature/amazing-feature`
+8. **Open** a Pull Request
+
+### Development Setup
 ```bash
-# Basic usage
-./media-gen audio
+# Install dependencies
+# (FFmpeg installation varies by platform - see Requirements section)
 
-# With custom settings
-./media-gen audio --duration 120 --bitrate 320k --format wav --output test.wav
+# Run development build
+zig build
 
-# Different formats
-./media-gen audio --format flac --sample-rate 48000 --output test.flac
-```
-
-## Supported Formats
-
-### Video
-- **Formats**: MP4, AVI, MOV, MKV
-- **Codecs**: libx264, libx265, libvpx-vp9
-
-### Audio
-- **Formats**: MP3, WAV, AAC, FLAC
-- **Codecs**: libmp3lame, pcm_s16le, aac
-- **Sample Rates**: 8000, 11025, 22050, 44100, 48000, 96000 Hz (and others)
-
-## Default Parameters
-
-### Video
-- Resolution: 1920x1080
-- Duration: 30 seconds
-- FPS: 30
-- Bitrate: 1000k
-- Format: MP4
-- Codec: libx264
-
-### Audio
-- Duration: 30 seconds
-- Sample rate: 44100 Hz
-- Bitrate: 128k
-- Format: MP3
-- Codec: libmp3lame
-
-## Usage Examples
-
-```bash
-# Create test video for mobile app
-./media-gen video --width 720 --height 1280 --duration 15 --bitrate 500k --output mobile_test.mp4
-
-# Create high-quality audio for testing
-./media-gen audio --bitrate 320k --sample-rate 48000 --format wav --duration 300 --output hq_test.wav
-
-# Create CD-quality audio
-./media-gen audio --sample-rate 44100 --bitrate 320k --format wav --output cd_quality.wav
-
-# Create professional audio (96kHz)
-./media-gen audio --sample-rate 96000 --bitrate 320k --format flac --output professional.flac
-
-# Create web-optimized video
-./media-gen video --width 854 --height 480 --bitrate 800k --format mp4 --output web_test.mp4
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# Run unit tests
+# Run all tests
 zig build test
 
-# Run integration tests (requires FFmpeg)
-./zig-out/bin/media-gen video --duration 2 --output test.mp4
-./zig-out/bin/media-gen audio --duration 2 --output test.mp3
+# Validate CI/CD configuration
+./scripts/validate-workflows.sh
 ```
 
-### CI/CD
+## 📋 Supported Formats
 
-The project uses GitHub Actions for continuous integration:
+### Video Formats
+- **MP4** (H.264, H.265) - Most compatible
+- **AVI** (H.264) - Legacy support
+- **MOV** (H.264, H.265) - Apple ecosystem
+- **MKV** (H.264, H.265, VP9) - Open standard
 
-- **Build and Test**: Runs on push/PR, builds for all platforms
-- **Manual Build**: Allows manual building for specific platforms
-- **Test Suite**: Comprehensive testing including performance tests
-- **Workflow Validation**: Validates CI/CD configuration files
+### Audio Formats
+- **MP3** (LAME) - Universal compatibility
+- **WAV** (PCM) - Uncompressed, high quality
+- **AAC** - Modern, efficient compression
+- **FLAC** - Lossless compression
 
-See [.github/README.md](.github/README.md) for detailed CI/CD documentation.
+### Sample Rates
+8000, 11025, 22050, 44100, 48000, 96000 Hz and more
 
-### Contributing
+## 🐛 Troubleshooting
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `zig build test`
-5. Validate workflows: `./scripts/validate-workflows.sh`
-6. Submit a pull request
+### Common Issues
 
-All PRs are automatically tested on Linux, Windows, and macOS.
+**FFmpeg not found**
+```bash
+# Check if FFmpeg is installed
+ffmpeg -version
 
-### Scripts
+# Install FFmpeg if missing (see Requirements section)
+```
 
-- `build-all.sh` - Build for all platforms
-- `scripts/validate-workflows.sh` - Validate GitHub Actions workflows locally
+**Permission denied**
+```bash
+# Make the binary executable (Linux/macOS)
+chmod +x media-gen
+```
+
+**Large file sizes**
+```bash
+# Reduce bitrate for smaller files
+./media-gen video --bitrate 500k --output smaller.mp4
+./media-gen audio --bitrate 96k --output smaller.mp3
+```
+
+### Getting Help
+
+- 📖 Check this README for usage examples
+- 🐛 [Report bugs](https://github.com/DimazzzZ/media-gen/issues)
+- 💡 [Request features](https://github.com/DimazzzZ/media-gen/issues)
+- 💬 [Start a discussion](https://github.com/DimazzzZ/media-gen/discussions)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [Zig](https://ziglang.org/) for performance and reliability
+- Powered by [FFmpeg](https://ffmpeg.org/) for media processing
+- Inspired by the need for simple, reliable test media generation
+
+---
+
+**Made with ❤️ for developers who need reliable test media files**

@@ -67,6 +67,7 @@ zig build -Dtarget=x86_64-linux
 ### Audio
 - **Formats**: MP3, WAV, AAC, FLAC
 - **Codecs**: libmp3lame, pcm_s16le, aac
+- **Sample Rates**: 8000, 11025, 22050, 44100, 48000, 96000 Hz (and others)
 
 ## Default Parameters
 
@@ -93,6 +94,12 @@ zig build -Dtarget=x86_64-linux
 
 # Create high-quality audio for testing
 ./media-gen audio --bitrate 320k --sample-rate 48000 --format wav --duration 300 --output hq_test.wav
+
+# Create CD-quality audio
+./media-gen audio --sample-rate 44100 --bitrate 320k --format wav --output cd_quality.wav
+
+# Create professional audio (96kHz)
+./media-gen audio --sample-rate 96000 --bitrate 320k --format flac --output professional.flac
 
 # Create web-optimized video
 ./media-gen video --width 854 --height 480 --bitrate 800k --format mp4 --output web_test.mp4

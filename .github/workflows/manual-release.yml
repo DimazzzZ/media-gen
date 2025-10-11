@@ -1,0 +1,175 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if [[ ! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $version"
+            echo "Expected format: v1.0.0"
+            exit 1
+          fi
+          echo "✅ Version format is valid: $version"
+
+      - name: Check if tag exists
+        run: |
+          version="${{ github.event.inputs.version }}"
+          if git rev-parse "$version" >/dev/null 2>&1; then
+            echo "❌ Tag $version already exists"
+            exit 1
+          fi
+          echo "✅ Tag $version is available"
+
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    needs: validate
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            target: x86_64-linux
+            artifact: media-gen-linux-x86_64
+          - os: windows
+            runner: windows-latest
+            target: x86_64-windows
+            artifact: media-gen-windows-x86_64.exe
+          - os: macos-intel
+            runner: macos-13
+            target: x86_64-macos
+            artifact: media-gen-macos-x86_64
+          - os: macos-arm
+            runner: macos-latest
+            target: aarch64-macos
+            artifact: media-gen-macos-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Build for ${{ matrix.target }}
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+
+      - name: Copy artifact (Unix)
+        if: matrix.os != 'windows'
+        run: cp zig-out/bin/media-gen ${{ matrix.artifact }}
+
+      - name: Copy artifact (Windows)
+        if: matrix.os == 'windows'
+        run: copy zig-out\bin\media-gen.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          retention-days: 30
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version }}
+          name: "Media Generator ${{ github.event.inputs.version }} - Embedded FFmpeg Edition"
+          draft: ${{ github.event.inputs.draft }}
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: artifacts/**/*
+          body: |
+            ## Media Generator - Embedded FFmpeg Edition
+            
+            **No external dependencies required!** FFmpeg is embedded directly into the executable.
+            
+            ### 🚀 What's New in ${{ github.event.inputs.version }}
+            
+            - Embedded FFmpeg binaries for all platforms
+            - Zero external dependencies
+            - Cross-platform support (Linux, Windows, macOS Intel/ARM)
+            - Improved error handling and logging
+            
+            ### 📥 Downloads
+            
+            | Platform | Download |
+            |----------|----------|
+            | **Linux x86_64** | `media-gen-linux-x86_64` |
+            | **Windows x86_64** | `media-gen-windows-x86_64.exe` |
+            | **macOS Intel** | `media-gen-macos-x86_64` |
+            | **macOS ARM64** | `media-gen-macos-arm64` |
+            
+            ### 🛠️ Usage
+            
+            ```bash
+            # Generate video with countdown
+            ./media-gen video --duration 10 --output countdown.mp4
+            
+            # Generate audio test tone
+            ./media-gen audio --frequency 440 --duration 5 --output tone.wav
+            
+            # Show help
+            ./media-gen help
+            ```
+            
+            ### ✨ Features
+            
+            - 🎬 **Video generation** with animated countdown timer
+            - 🎵 **Audio generation** with configurable sine wave test tones
+            - 🎯 **Multiple formats**: MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
+            - 📦 **Zero dependencies** - FFmpeg embedded
+            - 🚀 **Cross-platform** support
+            - ⚡ **Fast** - Built with Zig for optimal performance
+            
+            ### 🔧 Installation
+            
+            1. Download the appropriate binary for your platform
+            2. Make it executable: `chmod +x media-gen-*` (Unix systems)
+            3. Run: `./media-gen help`
+            
+            No additional setup required!
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

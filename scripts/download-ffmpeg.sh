@@ -35,8 +35,22 @@ download_with_retry() {
 echo "Downloading Linux x86_64..."
 mkdir -p "$VENDOR_DIR/linux-x64"
 if download_with_retry "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz" "/tmp/ffmpeg-linux64.tar.xz"; then
-    tar -xJ --strip-components=2 -C "$VENDOR_DIR/linux-x64" -f "/tmp/ffmpeg-linux64.tar.xz" "*/bin/ffmpeg"
-    rm "/tmp/ffmpeg-linux64.tar.xz"
+    # Extract to temp directory first, then find and copy ffmpeg
+    mkdir -p "/tmp/ffmpeg-extract"
+    tar -xJ -C "/tmp/ffmpeg-extract" -f "/tmp/ffmpeg-linux64.tar.xz"
+    
+    # Find ffmpeg binary and copy it
+    ffmpeg_binary=$(find "/tmp/ffmpeg-extract" -name "ffmpeg" -type f | head -1)
+    if [ -n "$ffmpeg_binary" ]; then
+        cp "$ffmpeg_binary" "$VENDOR_DIR/linux-x64/ffmpeg"
+        chmod +x "$VENDOR_DIR/linux-x64/ffmpeg"
+        echo "✅ Linux FFmpeg extracted successfully"
+    else
+        echo "❌ FFmpeg binary not found in Linux archive"
+        exit 1
+    fi
+    
+    rm -rf "/tmp/ffmpeg-extract" "/tmp/ffmpeg-linux64.tar.xz"
 else
     echo "❌ Failed to download Linux FFmpeg"
     exit 1
@@ -46,8 +60,21 @@ fi
 echo "Downloading Windows x86_64..."
 mkdir -p "$VENDOR_DIR/windows-x64"
 if download_with_retry "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" "/tmp/ffmpeg-win64.zip"; then
-    unzip -o -j "/tmp/ffmpeg-win64.zip" "*/bin/ffmpeg.exe" -d "$VENDOR_DIR/windows-x64"
-    rm "/tmp/ffmpeg-win64.zip"
+    # Extract to temp directory first, then find and copy ffmpeg.exe
+    mkdir -p "/tmp/ffmpeg-extract-win"
+    unzip -o "/tmp/ffmpeg-win64.zip" -d "/tmp/ffmpeg-extract-win"
+    
+    # Find ffmpeg.exe binary and copy it
+    ffmpeg_binary=$(find "/tmp/ffmpeg-extract-win" -name "ffmpeg.exe" -type f | head -1)
+    if [ -n "$ffmpeg_binary" ]; then
+        cp "$ffmpeg_binary" "$VENDOR_DIR/windows-x64/ffmpeg.exe"
+        echo "✅ Windows FFmpeg extracted successfully"
+    else
+        echo "❌ FFmpeg.exe binary not found in Windows archive"
+        exit 1
+    fi
+    
+    rm -rf "/tmp/ffmpeg-extract-win" "/tmp/ffmpeg-win64.zip"
 else
     echo "❌ Failed to download Windows FFmpeg"
     exit 1
@@ -57,11 +84,18 @@ fi
 echo "Downloading macOS x86_64..."
 mkdir -p "$VENDOR_DIR/macos-x64"
 if download_with_retry "https://evermeet.cx/ffmpeg/ffmpeg-6.1.zip" "/tmp/ffmpeg-macos-x64.zip"; then
-    unzip -o -j "/tmp/ffmpeg-macos-x64.zip" "ffmpeg" -d "$VENDOR_DIR/macos-x64"
-    rm "/tmp/ffmpeg-macos-x64.zip"
-elif download_with_retry "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.zip" "/tmp/ffmpeg-macos-x64-alt.zip"; then
-    unzip -o -j "/tmp/ffmpeg-macos-x64-alt.zip" "*/bin/ffmpeg" -d "$VENDOR_DIR/macos-x64"
-    rm "/tmp/ffmpeg-macos-x64-alt.zip"
+    # Extract directly - evermeet.cx has ffmpeg in root
+    unzip -o "/tmp/ffmpeg-macos-x64.zip" -d "/tmp/ffmpeg-extract-mac"
+    ffmpeg_binary=$(find "/tmp/ffmpeg-extract-mac" -name "ffmpeg" -type f | head -1)
+    if [ -n "$ffmpeg_binary" ]; then
+        cp "$ffmpeg_binary" "$VENDOR_DIR/macos-x64/ffmpeg"
+        chmod +x "$VENDOR_DIR/macos-x64/ffmpeg"
+        echo "✅ macOS x64 FFmpeg extracted successfully"
+    else
+        echo "❌ FFmpeg binary not found in macOS x64 archive"
+        exit 1
+    fi
+    rm -rf "/tmp/ffmpeg-extract-mac" "/tmp/ffmpeg-macos-x64.zip"
 else
     echo "❌ Failed to download macOS x64 FFmpeg"
     exit 1
@@ -71,8 +105,17 @@ fi
 echo "Downloading macOS ARM64..."
 mkdir -p "$VENDOR_DIR/macos-arm64"
 if download_with_retry "https://www.osxexperts.net/ffmpeg6arm.zip" "/tmp/ffmpeg-macos-arm64.zip"; then
-    unzip -o -j "/tmp/ffmpeg-macos-arm64.zip" "ffmpeg" -d "$VENDOR_DIR/macos-arm64"
-    rm "/tmp/ffmpeg-macos-arm64.zip"
+    unzip -o "/tmp/ffmpeg-macos-arm64.zip" -d "/tmp/ffmpeg-extract-arm"
+    ffmpeg_binary=$(find "/tmp/ffmpeg-extract-arm" -name "ffmpeg" -type f | head -1)
+    if [ -n "$ffmpeg_binary" ]; then
+        cp "$ffmpeg_binary" "$VENDOR_DIR/macos-arm64/ffmpeg"
+        chmod +x "$VENDOR_DIR/macos-arm64/ffmpeg"
+        echo "✅ macOS ARM64 FFmpeg extracted successfully"
+    else
+        echo "⚠️  FFmpeg binary not found in ARM64 archive, copying x64 version"
+        cp "$VENDOR_DIR/macos-x64/ffmpeg" "$VENDOR_DIR/macos-arm64/"
+    fi
+    rm -rf "/tmp/ffmpeg-extract-arm" "/tmp/ffmpeg-macos-arm64.zip"
 else
     echo "⚠️  ARM64 macOS FFmpeg not available, copying x64 version"
     cp "$VENDOR_DIR/macos-x64/ffmpeg" "$VENDOR_DIR/macos-arm64/"

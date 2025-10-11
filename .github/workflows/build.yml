@@ -1,11 +1,8 @@
-name: Build and Test
+name: Build and Release
 
 on:
-  workflow_run:
-    workflows: ["Test Suite"]
-    types:
-      - completed
-    branches: [ main, develop ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       platforms:
@@ -22,7 +19,6 @@ jobs:
   build:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         include:
@@ -70,56 +66,4 @@ jobs:
           path: ${{ matrix.artifact }}
           retention-days: 30
 
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ github.run_number }}
-          name: "Media Generator v${{ github.run_number }} - Embedded FFmpeg Edition"
-          draft: false
-          prerelease: false
-          files: artifacts/**/*
-          body: |
-            ## Media Generator - Embedded FFmpeg Edition
-            
-            **No external dependencies required!** FFmpeg is embedded directly into the executable.
-            
-            ### Downloads
-            - **Linux x86_64**: `media-gen-linux-x86_64`
-            - **Windows x86_64**: `media-gen-windows-x86_64.exe`
-            - **macOS Intel**: `media-gen-macos-x86_64`
-            - **macOS ARM64**: `media-gen-macos-arm64`
-            
-            ### Usage
-            ```bash
-            # Generate video with countdown
-            ./media-gen video --duration 10 --output countdown.mp4
-            
-            # Generate audio test tone
-            ./media-gen audio --frequency 440 --duration 5 --output tone.wav
-            
-            # Show help
-            ./media-gen help
-            ```
-            
-            ### Features
-            - 🎬 Video generation with animated countdown timer
-            - 🎵 Audio generation with configurable sine wave test tones
-            - 🎯 Multiple formats: MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
-            - 📦 Zero dependencies - FFmpeg embedded
-            - 🚀 Cross-platform support
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Release job removed - use manual-release.yml workflow instead

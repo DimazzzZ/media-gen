@@ -4,6 +4,10 @@ const cli = @import("../cli.zig");
 const ffmpeg = @import("../ffmpeg.zig");
 
 pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
+    try generateWithProgress(allocator, config, false);
+}
+
+pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.VideoConfig, show_progress: bool) !void {
     print("Generating video with parameters:\n", .{});
     print("  Resolution: {}x{}\n", .{ config.width, config.height });
     print("  Duration: {}s\n", .{config.duration});
@@ -11,7 +15,6 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
     print("  Bitrate: {s}\n", .{config.bitrate});
     print("  Format: {s}\n", .{config.format});
     print("  Codec: {s}\n", .{config.codec});
-
     print("  Output: {s}\n", .{config.output});
 
     // Create input filter with countdown timer - black background with large white numbers
@@ -41,6 +44,12 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
     };
 
     // Execute FFmpeg command
+    if (show_progress) {
+        print("🎬 Running FFmpeg encoder...\n", .{});
+        print("⏳ Please wait, encoding {d}s video...\n", .{config.duration});
+    }
+
+    // Run FFmpeg
     const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = &cmd_args,

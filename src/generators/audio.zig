@@ -4,6 +4,10 @@ const cli = @import("../cli.zig");
 const ffmpeg = @import("../ffmpeg.zig");
 
 pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
+    try generateWithProgress(allocator, config, false);
+}
+
+pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.AudioConfig, show_progress: bool) !void {
     print("Generating audio with parameters:\n", .{});
     print("  Duration: {}s\n", .{config.duration});
     print("  Sample rate: {}Hz\n", .{config.sample_rate});
@@ -78,6 +82,12 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
     }
 
     // Execute FFmpeg command
+    if (show_progress) {
+        print("🎵 Running FFmpeg encoder...\n", .{});
+        print("⏳ Please wait, encoding {d}s audio...\n", .{config.duration});
+    }
+
+    // Run FFmpeg
     const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = cmd_args,

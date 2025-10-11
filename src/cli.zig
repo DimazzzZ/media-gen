@@ -35,6 +35,7 @@ pub fn printHelp() !void {
     print("Commands:\n", .{});
     print("  video        Generate video file with countdown timer\n", .{});
     print("  audio        Generate audio file with test tones\n", .{});
+    print("  i, interactive  Interactive mode - guided setup\n", .{});
     print("  help         Show this help message\n\n", .{});
     print("Video options:\n", .{});
     print("  --width <width>        Video width (default: 1920)\n", .{});
@@ -63,6 +64,12 @@ pub fn printHelp() !void {
 pub fn parseAndExecute(allocator: std.mem.Allocator, args: [][:0]u8) !void {
     if (std.mem.eql(u8, args[1], "help")) {
         try printHelp();
+        return;
+    }
+
+    if (std.mem.eql(u8, args[1], "i") or std.mem.eql(u8, args[1], "interactive")) {
+        const interactive = @import("interactive.zig");
+        try interactive.run(allocator);
         return;
     }
 

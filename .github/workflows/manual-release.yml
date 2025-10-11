@@ -33,7 +33,7 @@ jobs:
       - name: Validate version format
         run: |
           version="${{ github.event.inputs.version }}"
-          if [[ ! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$]]; then
             echo "❌ Invalid version format: $version"
             echo "Expected format: v1.0.0"
             exit 1
@@ -149,53 +149,53 @@ jobs:
           files: artifacts/**/*
           body: |
             ## Media Generator - Embedded FFmpeg Edition
-            
+
             **No external dependencies required!** FFmpeg is embedded directly into the executable.
-            
+
             ### 🚀 What's New in ${{ github.event.inputs.version }}
-            
+
             - Embedded FFmpeg binaries for all platforms
             - Zero external dependencies
             - Cross-platform support (Linux, Windows, macOS Intel/ARM)
             - Improved error handling and logging
-            
+
             ### 📥 Downloads
-            
+
             | Platform | Download |
             |----------|----------|
             | **Linux x86_64** | `media-gen-linux-x86_64` |
             | **Windows x86_64** | `media-gen-windows-x86_64.exe` |
             | **macOS Intel** | `media-gen-macos-x86_64` |
             | **macOS ARM64** | `media-gen-macos-arm64` |
-            
+
             ### 🛠️ Usage
-            
+
             ```bash
             # Generate video with countdown
             ./media-gen video --duration 10 --output countdown.mp4
-            
+
             # Generate audio test tone
             ./media-gen audio --frequency 440 --duration 5 --output tone.wav
-            
+
             # Show help
             ./media-gen help
             ```
-            
+
             ### ✨ Features
-            
+
             - 🎬 **Video generation** with animated countdown timer
             - 🎵 **Audio generation** with configurable sine wave test tones
             - 🎯 **Multiple formats**: MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
             - 📦 **Zero dependencies** - FFmpeg embedded
             - 🚀 **Cross-platform** support
             - ⚡ **Fast** - Built with Zig for optimal performance
-            
+
             ### 🔧 Installation
-            
+
             1. Download the appropriate binary for your platform
             2. Make it executable: `chmod +x media-gen-*` (Unix systems)
             3. Run: `./media-gen help`
-            
+
             No additional setup required!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

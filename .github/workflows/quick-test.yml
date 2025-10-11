@@ -2,9 +2,9 @@ name: Quick Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   quick-tests:
@@ -51,16 +51,16 @@ jobs:
           ./zig-out/bin/media-gen video --duration 1 --width 160 --height 120 --output test-media/quick_video.mp4
           ./zig-out/bin/media-gen audio --duration 1 --sample-rate 8000 --output test-media/quick_audio.mp3
           ./zig-out/bin/media-gen help
-          
+
           # Verify files exist and have reasonable size
-          if [[ ! -f test-media/quick_video.mp4 ]] || [[ $(stat -c%s test-media/quick_video.mp4) -lt 100 ]]; then
+          if [[! -f test-media/quick_video.mp4]] || [[$(stat -c%s test-media/quick_video.mp4) -lt 100]]; then
             echo "Video test failed"
             exit 1
           fi
-          
-          if [[ ! -f test-media/quick_audio.mp3 ]] || [[ $(stat -c%s test-media/quick_audio.mp3) -lt 100 ]]; then
+
+          if [[! -f test-media/quick_audio.mp3]] || [[$(stat -c%s test-media/quick_audio.mp3) -lt 100]]; then
             echo "Audio test failed"
             exit 1
           fi
-          
+
           echo "✅ Quick tests passed"

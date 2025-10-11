@@ -31,7 +31,7 @@ jobs:
 
       - name: Check script permissions
         run: |
-          if [ -f "scripts/download-ffmpeg.sh" ]; then
+          if [-f "scripts/download-ffmpeg.sh"]; then
             echo "✅ download-ffmpeg.sh found"
           else
             echo "❌ download-ffmpeg.sh not found"
@@ -41,7 +41,10 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'unit' || github.event_name == 'schedule'
+    if: >
+      github.event.inputs.test_type == 'all' ||
+      github.event.inputs.test_type == 'unit' ||
+      github.event_name == 'schedule'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,7 +86,10 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
-    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration' || github.event_name == 'schedule'
+    if: >
+      github.event.inputs.test_type == 'all' ||
+      github.event.inputs.test_type == 'integration' ||
+      github.event_name == 'schedule'
     strategy:
       matrix:
         include:
@@ -130,65 +136,71 @@ jobs:
           restore-keys: |
             zig-build-${{ matrix.os }}-
 
-      # Optimized build command per platform
-      - name: Build application (FFmpeg cached or downloaded)
-        shell: ${{ matrix.shell }}
-        run: |
-          ${{ matrix.os == 'windows-2022' && 'zig build --parallel' || 'zig build' }}
+      # Optimized build command per platform (Windows)
+      - name: Build application (Windows)
+        if: matrix.os == 'windows-2022'
+        shell: pwsh
+        run: zig build --parallel
+
+      # Optimized build command per platform (Unix)
+      - name: Build application (Unix)
+        if: matrix.os != 'windows-2022'
+        shell: bash
+        run: zig build
 
       - name: Test video generation
         shell: bash
         run: |
           # Create test-media directory
           mkdir -p test-media
-          
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+
+          if [["${{ matrix.os }}" == "windows-latest"]]; then
             ./zig-out/bin/media-gen.exe video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           else
             ./zig-out/bin/media-gen video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           fi
-          
+
           # Check if file exists and has reasonable size
-          if [[ ! -f test-media/test_video.mp4 ]]; then
+          if [[! -f test-media/test_video.mp4]]; then
             echo "Video file was not created"
             exit 1
           fi
-          
+
           file_size=$(stat -f%z test-media/test_video.mp4 2>/dev/null || stat -c%s test-media/test_video.mp4)
-          if [[ $file_size -lt 1000 ]]; then
+          if [[$file_size -lt 1000]]; then
             echo "Video file is too small: $file_size bytes"
             exit 1
           fi
-          
+
           echo "Video test passed: $file_size bytes"
 
       - name: Test audio generation
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [["${{ matrix.os }}" == "windows-latest"]]; then
             ./zig-out/bin/media-gen.exe audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           else
             ./zig-out/bin/media-gen audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           fi
-          
+
           # Check if file exists and has reasonable size
-          if [[ ! -f test-media/test_audio.mp3 ]]; then
+          if [[! -f test-media/test_audio.mp3]]; then
             echo "Audio file was not created"
             exit 1
           fi
-          
+
           file_size=$(stat -f%z test-media/test_audio.mp3 2>/dev/null || stat -c%s test-media/test_audio.mp3)
-          if [[ $file_size -lt 1000 ]]; then
+          if [[$file_size -lt 1000]]; then
             echo "Audio file is too small: $file_size bytes"
             exit 1
           fi
-          
+
           echo "Audio test passed: $file_size bytes"
 
       - name: Test help command
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [["${{ matrix.os }}" == "windows-latest"]]; then
             ./zig-out/bin/media-gen.exe help
           else
             ./zig-out/bin/media-gen help
@@ -198,13 +210,13 @@ jobs:
         shell: bash
         run: |
           set +e  # Don't exit on error
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [["${{ matrix.os }}" == "windows-latest"]]; then
             ./zig-out/bin/media-gen.exe invalid_command
           else
             ./zig-out/bin/media-gen invalid_command
           fi
           exit_code=$?
-          if [[ $exit_code -eq 0 ]]; then
+          if [[$exit_code -eq 0]]; then
             echo "Expected non-zero exit code for invalid command"
             exit 1
           fi
@@ -213,7 +225,10 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
-    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'performance' || github.event_name == 'schedule'
+    if: >
+      github.event.inputs.test_type == 'all' ||
+      github.event.inputs.test_type == 'performance' ||
+      github.event_name == 'schedule'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -248,8 +263,9 @@ jobs:
         run: |
           mkdir -p test-media
           echo "Testing video generation performance..."
-          time ./zig-out/bin/media-gen video --duration 3 --width 480 --height 360 --output test-media/perf_test_video.mp4
-          
+          time ./zig-out/bin/media-gen video --duration 3 --width 480 --height 360 \
+            --output test-media/perf_test_video.mp4
+
           file_size=$(stat -c%s test-media/perf_test_video.mp4)
           echo "Generated video size: $file_size bytes"
 
@@ -257,6 +273,6 @@ jobs:
         run: |
           echo "Testing audio generation performance..."
           time ./zig-out/bin/media-gen audio --duration 3 --sample-rate 22050 --output test-media/perf_test_audio.mp3
-          
+
           file_size=$(stat -c%s test-media/perf_test_audio.mp3)
           echo "Generated audio size: $file_size bytes"

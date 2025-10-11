@@ -55,7 +55,7 @@ jobs:
         id: cache-ffmpeg
         with:
           path: src/vendor/ffmpeg
-          key: ffmpeg-resilient-${{ matrix.os }}-${{ hashFiles('scripts/download-ffmpeg*.sh', 'scripts/download-ffmpeg*.ps1') }}
+          key: ffmpeg-resilient-${{ matrix.os }}-${{ hashFiles('scripts/download-ffmpeg*') }}
           restore-keys: |
             ffmpeg-resilient-${{ matrix.os }}-
 
@@ -75,85 +75,145 @@ jobs:
             zig-out
           key: zig-resilient-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
 
-      # Pre-download FFmpeg with retry logic
-      - name: Ensure FFmpeg is available (with retry)
-        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
+      # Pre-download FFmpeg with retry logic (Windows)
+      - name: Ensure FFmpeg is available (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $maxAttempts = 3
+          $attempt = 1
+
+          while ($attempt -le $maxAttempts) {
+            Write-Host "🔄 Attempt $attempt/$maxAttempts to ensure FFmpeg..."
+
+            $ffmpegExists = (Test-Path "src\vendor\ffmpeg") -and
+                             (Get-ChildItem "src\vendor\ffmpeg" -Recurse -Name "ffmpeg*").Count -gt 0
+            if ($ffmpegExists) {
+              Write-Host "✅ FFmpeg already available"
+              break
+            }
+
+            Write-Host "📥 Downloading FFmpeg (attempt $attempt)..."
+
+            if (Test-Path "scripts\download-ffmpeg-windows.ps1") {
+              powershell -ExecutionPolicy Bypass -File ".\scripts\download-ffmpeg-windows.ps1"
+            } else {
+              bash .\scripts\download-ffmpeg.sh
+            }
+
+            $ffmpegExists = (Test-Path "src\vendor\ffmpeg") -and
+                             (Get-ChildItem "src\vendor\ffmpeg" -Recurse -Name "ffmpeg*").Count -gt 0
+            if ($ffmpegExists) {
+              Write-Host "✅ FFmpeg download successful"
+              break
+            }
+
+            if ($attempt -eq $maxAttempts) {
+              Write-Error "❌ Failed to download FFmpeg after $maxAttempts attempts"
+              exit 1
+            }
+
+            Write-Host "⏳ Waiting 10 seconds before retry..."
+            Start-Sleep 10
+            $attempt++
+          }
+
+      # Pre-download FFmpeg with retry logic (Unix)
+      - name: Ensure FFmpeg is available (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
           max_attempts=3
           attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
+
+          while [$attempt -le $max_attempts]; do
             echo "🔄 Attempt $attempt/$max_attempts to ensure FFmpeg..."
-            
-            if [ -d "src/vendor/ffmpeg" ] && [ "$(find src/vendor/ffmpeg -name 'ffmpeg*' -type f | wc -l)" -gt 0 ]; then
+
+            if [-d "src/vendor/ffmpeg"] && ["$(find src/vendor/ffmpeg -name 'ffmpeg*' -type f | wc -l)" -gt 0]; then
               echo "✅ FFmpeg already available"
               break
             fi
-            
+
             echo "📥 Downloading FFmpeg (attempt $attempt)..."
-            
-            ${{ matrix.os == 'windows' && '
-            if (Test-Path "scripts/download-ffmpeg-windows.ps1") {
-              powershell -ExecutionPolicy Bypass -File "./scripts/download-ffmpeg-windows.ps1"
-            } else {
-              bash ./scripts/download-ffmpeg.sh
-            }
-            ' || '
             chmod +x ./scripts/download-ffmpeg.sh
             ./scripts/download-ffmpeg.sh
-            ' }}
-            
-            if [ -d "src/vendor/ffmpeg" ] && [ "$(find src/vendor/ffmpeg -name 'ffmpeg*' -type f | wc -l)" -gt 0 ]; then
+
+            if [-d "src/vendor/ffmpeg"] && ["$(find src/vendor/ffmpeg -name 'ffmpeg*' -type f | wc -l)" -gt 0]; then
               echo "✅ FFmpeg download successful"
               break
             fi
-            
-            if [ $attempt -eq $max_attempts ]; then
+
+            if [$attempt -eq $max_attempts]; then
               echo "❌ Failed to download FFmpeg after $max_attempts attempts"
               exit 1
             fi
-            
+
             echo "⏳ Waiting 10 seconds before retry..."
             sleep 10
             attempt=$((attempt + 1))
           done
 
-      # Build with retry logic
-      - name: Build with retry
-        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
+      # Build with retry logic (Windows)
+      - name: Build with retry (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $maxAttempts = 2
+          $attempt = 1
+
+          while ($attempt -le $maxAttempts) {
+            Write-Host "🔨 Build attempt $attempt/$maxAttempts..."
+
+            $env:ZIG_GLOBAL_CACHE_DIR = "$env:RUNNER_TEMP\zig-cache"
+            zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel
+
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "✅ Build successful"
+              break
+            }
+
+            if ($attempt -eq $maxAttempts) {
+              Write-Error "❌ Build failed after $maxAttempts attempts"
+              exit 1
+            }
+
+            Write-Host "⏳ Cleaning cache and retrying..."
+            Remove-Item ".zig-cache", "zig-out" -Recurse -Force -ErrorAction SilentlyContinue
+            $attempt++
+          }
+
+      # Build with retry logic (Unix)
+      - name: Build with retry (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
           max_attempts=2
           attempt=1
-          
-          while [ $attempt -le $max_attempts ]; do
+
+          while [$attempt -le $max_attempts]; do
             echo "🔨 Build attempt $attempt/$max_attempts..."
-            
-            ${{ matrix.os == 'windows' && '
-            $env:ZIG_GLOBAL_CACHE_DIR = "$env:RUNNER_TEMP\zig-cache"
-            zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel
-            ' || '
+
             zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
-            ' }}
-            
-            if [ $? -eq 0 ]; then
+
+            if [$? -eq 0]; then
               echo "✅ Build successful"
               break
             fi
-            
-            if [ $attempt -eq $max_attempts ]; then
+
+            if [$attempt -eq $max_attempts]; then
               echo "❌ Build failed after $max_attempts attempts"
               exit 1
             fi
-            
+
             echo "⏳ Cleaning cache and retrying..."
             rm -rf .zig-cache zig-out 2>/dev/null || true
             attempt=$((attempt + 1))
           done
 
-      - name: Verify and copy artifact
-        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
+      - name: Verify and copy artifact (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
         run: |
-          ${{ matrix.os == 'windows' && '
           if (Test-Path "zig-out\bin\media-gen.exe") {
             Copy-Item "zig-out\bin\media-gen.exe" "${{ matrix.artifact }}" -Force
             $fileInfo = Get-Item "${{ matrix.artifact }}"
@@ -162,8 +222,12 @@ jobs:
             Write-Error "❌ Windows executable not found"
             exit 1
           }
-          ' || '
-          if [ -f "zig-out/bin/media-gen" ]; then
+
+      - name: Verify and copy artifact (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          if [-f "zig-out/bin/media-gen"]; then
             cp zig-out/bin/media-gen ${{ matrix.artifact }}
             ls -la ${{ matrix.artifact }}
             echo "✅ Unix artifact created"
@@ -171,7 +235,6 @@ jobs:
             echo "❌ Unix executable not found"
             exit 1
           fi
-          ' }}
 
       # Try to upload, but don't fail if it doesn't work
       - name: Try to upload artifact
@@ -182,25 +245,33 @@ jobs:
           path: ${{ matrix.artifact }}
           retention-days: 7
 
-      # Always show build success info
-      - name: Build summary
-        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
+      # Always show build success info (Windows)
+      - name: Build summary (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          Write-Host "🎉 Build completed successfully!"
+          Write-Host "Platform: ${{ matrix.os }}"
+          Write-Host "Target: ${{ matrix.target }}"
+          Write-Host "Artifact: ${{ matrix.artifact }}"
+          if (Test-Path "${{ matrix.artifact }}") {
+            $size = (Get-Item "${{ matrix.artifact }}").Length
+            Write-Host "Size: $([math]::Round($size / 1MB, 2)) MB"
+          }
+
+      # Always show build success info (Unix)
+      - name: Build summary (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
         run: |
           echo "🎉 Build completed successfully!"
           echo "Platform: ${{ matrix.os }}"
           echo "Target: ${{ matrix.target }}"
           echo "Artifact: ${{ matrix.artifact }}"
-          ${{ matrix.os == 'windows' && '
-          if (Test-Path "${{ matrix.artifact }}") {
-            $size = (Get-Item "${{ matrix.artifact }}").Length
-            Write-Host "Size: $([math]::Round($size / 1MB, 2)) MB"
-          }
-          ' || '
-          if [ -f "${{ matrix.artifact }}" ]; then
+          if [-f "${{ matrix.artifact }}"]; then
             size=$(stat -c%s "${{ matrix.artifact }}" 2>/dev/null || stat -f%z "${{ matrix.artifact }}")
             echo "Size: $(echo "scale=2; $size / 1048576" | bc 2>/dev/null || echo "$size bytes")"
           fi
-          ' }}
 
   summary:
     name: Build Summary
@@ -212,7 +283,7 @@ jobs:
         run: |
           echo "## Resilient Build Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "This build was designed to work even when GitHub services are experiencing issues." >> $GITHUB_STEP_SUMMARY
+          echo "This build works even when GitHub services have issues." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Features:" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ No dependency on GitHub cache service" >> $GITHUB_STEP_SUMMARY

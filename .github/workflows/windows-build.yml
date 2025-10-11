@@ -22,7 +22,7 @@ jobs:
   windows-build:
     name: Optimized Windows Build
     runs-on: windows-2022
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
             .zig-cache
             zig-out
             ${{ runner.temp }}\zig-cache
-          key: zig-build-win-${{ github.event.inputs.optimize_level || 'ReleaseSafe' }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}-v2
+          key: zig-build-win-${{ github.event.inputs.optimize_level || 'ReleaseSafe' }}-${{ hashFiles('build.zig') }}-v2
           restore-keys: |
             zig-build-win-${{ github.event.inputs.optimize_level || 'ReleaseSafe' }}-
             zig-build-win-
@@ -72,15 +72,15 @@ jobs:
           # Set optimal environment variables
           echo "ZIG_GLOBAL_CACHE_DIR=$env:RUNNER_TEMP\zig-global-cache" >> $env:GITHUB_ENV
           echo "ZIG_LOCAL_CACHE_DIR=.zig-cache" >> $env:GITHUB_ENV
-          
+
           # Use all CPU cores for parallel compilation
           $cpuCores = (Get-WmiObject -Class Win32_ComputerSystem).NumberOfLogicalProcessors
           echo "ZIG_BUILD_JOBS=$cpuCores" >> $env:GITHUB_ENV
           echo "NUMBER_OF_PROCESSORS=$cpuCores" >> $env:GITHUB_ENV
-          
+
           # Set Windows-specific compiler flags
           echo "ZIG_FLAGS=--cache-dir $env:RUNNER_TEMP\zig-cache" >> $env:GITHUB_ENV
-          
+
           Write-Host "🚀 Configured for $cpuCores CPU cores"
           Write-Host "📁 Cache dir: $env:RUNNER_TEMP\zig-cache"
 
@@ -92,25 +92,26 @@ jobs:
             Write-Host "📥 FFmpeg not cached, pre-downloading..."
             # Use PowerShell for faster download on Windows
             New-Item -ItemType Directory -Force -Path "src\vendor\ffmpeg\windows-x64"
-            
+
             # Download directly with PowerShell (faster than bash on Windows)
             $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
             $output = "$env:TEMP\ffmpeg-win64.zip"
-            
+
             Write-Host "⬇️ Downloading FFmpeg for Windows..."
             Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
-            
+
             Write-Host "📦 Extracting FFmpeg..."
             Expand-Archive -Path $output -DestinationPath "$env:TEMP\ffmpeg-extract" -Force
-            
+
             # Find and copy the FFmpeg executable
-            $ffmpegExe = Get-ChildItem -Path "$env:TEMP\ffmpeg-extract" -Name "ffmpeg.exe" -Recurse | Select-Object -First 1
+            $ffmpegExe = Get-ChildItem -Path "$env:TEMP\ffmpeg-extract" -Name "ffmpeg.exe" -Recurse |
+                         Select-Object -First 1
             if ($ffmpegExe) {
               $sourcePath = "$env:TEMP\ffmpeg-extract\$ffmpegExe"
               Copy-Item $sourcePath "src\vendor\ffmpeg\windows-x64\ffmpeg.exe" -Force
               Write-Host "✅ FFmpeg ready for Windows build"
             }
-            
+
             # Cleanup
             Remove-Item $output -Force -ErrorAction SilentlyContinue
             Remove-Item "$env:TEMP\ffmpeg-extract" -Recurse -Force -ErrorAction SilentlyContinue
@@ -124,17 +125,18 @@ jobs:
         run: |
           $optimizeLevel = "${{ github.event.inputs.optimize_level }}" -or "ReleaseSafe"
           Write-Host "🔨 Building with optimization: $optimizeLevel"
-          
+
           # Measure build time
           $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-          
+
           # Build with optimal flags
-          zig build -Dtarget=x86_64-windows -Doptimize=$optimizeLevel --cache-dir "$env:RUNNER_TEMP\zig-cache" --parallel
-          
+          zig build -Dtarget=x86_64-windows -Doptimize=$optimizeLevel \
+            --cache-dir "$env:RUNNER_TEMP\zig-cache" --parallel
+
           $stopwatch.Stop()
           $buildTime = $stopwatch.Elapsed.TotalSeconds
           Write-Host "⚡ Build completed in $([math]::Round($buildTime, 2)) seconds"
-          
+
           # Verify output
           if (Test-Path "zig-out\bin\media-gen.exe") {
             $fileSize = (Get-Item "zig-out\bin\media-gen.exe").Length
@@ -149,19 +151,19 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "🧪 Running quick functionality test..."
-          
+
           # Test help command
           .\zig-out\bin\media-gen.exe help
-          
+
           # Quick media generation test
           New-Item -ItemType Directory -Force -Path "test-output"
-          
+
           Write-Host "📹 Testing video generation..."
           .\zig-out\bin\media-gen.exe video --duration 1 --width 160 --height 120 --output "test-output\test.mp4"
-          
+
           Write-Host "🎵 Testing audio generation..."
           .\zig-out\bin\media-gen.exe audio --duration 1 --sample-rate 8000 --output "test-output\test.mp3"
-          
+
           # Verify outputs
           if ((Test-Path "test-output\test.mp4") -and (Test-Path "test-output\test.mp3")) {
             $videoSize = (Get-Item "test-output\test.mp4").Length
@@ -176,7 +178,7 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item "zig-out\bin\media-gen.exe" "media-gen-windows-x86_64.exe" -Force
-          
+
           # Get file info
           $fileInfo = Get-Item "media-gen-windows-x86_64.exe"
           Write-Host "📦 Final artifact: $($fileInfo.Name) ($([math]::Round($fileInfo.Length / 1MB, 2)) MB)"

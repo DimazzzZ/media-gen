@@ -1,0 +1,14 @@
+extends: default
+
+rules:
+  line-length:
+    max: 120  # Увеличиваем лимит для GitHub Actions
+  document-start: disable  # Отключаем требование ---
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']  # Разрешаем on/off
+  comments:
+    min-spaces-from-content: 1
+  brackets:
+    max-spaces-inside: 1
+  braces:
+    max-spaces-inside: 1

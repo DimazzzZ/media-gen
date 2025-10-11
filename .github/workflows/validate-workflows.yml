@@ -2,9 +2,9 @@ name: Validate Workflows
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -18,10 +18,10 @@ jobs:
       - name: Validate workflow syntax
         run: |
           echo "Validating workflow files..."
-          
+
           # Check if workflow files are valid YAML
           for file in .github/workflows/*.yml .github/workflows/*.yaml; do
-            if [ -f "$file" ]; then
+            if [-f "$file"]; then
               echo "Validating $file"
               python3 -c "
           import yaml
@@ -43,26 +43,26 @@ jobs:
       - name: Check for required fields
         run: |
           echo "Checking for required fields..."
-          
+
           for file in .github/workflows/*.yml .github/workflows/*.yaml; do
-            if [ -f "$file" ]; then
+            if [-f "$file"]; then
               echo "Checking $file for required fields..."
-              
+
               if ! grep -q "^name:" "$file"; then
                 echo "❌ $file is missing 'name' field"
                 exit 1
               fi
-              
+
               if ! grep -q "^on:" "$file"; then
                 echo "❌ $file is missing 'on' field"
                 exit 1
               fi
-              
+
               if ! grep -q "^jobs:" "$file"; then
                 echo "❌ $file is missing 'jobs' field"
                 exit 1
               fi
-              
+
               echo "✅ $file has required fields"
             fi
           done
@@ -70,9 +70,9 @@ jobs:
       - name: Check script permissions
         run: |
           echo "Checking script permissions..."
-          
-          if [ -f "scripts/download-ffmpeg.sh" ]; then
-            if [ -x "scripts/download-ffmpeg.sh" ]; then
+
+          if [-f "scripts/download-ffmpeg.sh"]; then
+            if [-x "scripts/download-ffmpeg.sh"]; then
               echo "✅ download-ffmpeg.sh is executable"
             else
               echo "❌ download-ffmpeg.sh is not executable"
@@ -94,11 +94,11 @@ jobs:
       - name: Check action versions
         run: |
           echo "Checking GitHub Actions versions..."
-          
+
           # List all used actions
           echo "Used actions:"
           grep -r "uses:" .github/workflows/ | grep -v "^#" | sort | uniq
-          
+
           # Check for unpinned actions
           if grep -r "uses:.*@main\|uses:.*@master" .github/workflows/; then
             echo "⚠️  Found unpinned actions (consider using specific versions)"
@@ -107,7 +107,7 @@ jobs:
       - name: Validate build requirements
         run: |
           echo "Validating build requirements..."
-          
+
           # Check if Zig setup is present
           if grep -r "setup-zig" .github/workflows/; then
             echo "✅ Zig setup found in workflows"
@@ -115,5 +115,5 @@ jobs:
             echo "❌ Zig setup not found in workflows"
             exit 1
           fi
-          
+
           echo "✅ All dependencies validated"

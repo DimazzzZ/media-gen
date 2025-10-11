@@ -2,7 +2,7 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
     inputs:
       platforms:
@@ -95,10 +95,15 @@ jobs:
           # Use all available CPU cores
           echo "ZIG_BUILD_JOBS=$env:NUMBER_OF_PROCESSORS" >> $env:GITHUB_ENV
 
-      - name: Build for ${{ matrix.target }}
-        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
-        run: |
-          ${{ matrix.os == 'windows' && 'zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel' || 'zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe' }}
+      - name: Build for ${{ matrix.target }} (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel
+
+      - name: Build for ${{ matrix.target }} (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
       - name: Copy artifact (Unix)
         if: matrix.os != 'windows'

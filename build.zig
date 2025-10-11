@@ -78,20 +78,33 @@ fn setupEmbeddedFFmpegBuild(b: *std.Build, exe: *std.Build.Step.Compile, target:
     std.fs.cwd().access(vendor_dir, .{}) catch {
         std.log.info("FFmpeg binaries not found, downloading...", .{});
 
-        // Make script executable first
-        _ = std.process.Child.run(.{
-            .allocator = b.allocator,
-            .argv = &[_][]const u8{ "chmod", "+x", "./scripts/download-ffmpeg.sh" },
-        }) catch {};
+        // Detect platform and run appropriate command
+        const builtin = @import("builtin");
+        const result = if (builtin.os.tag == .windows) blk: {
+            // On Windows, run with bash (Git Bash is available in GitHub Actions)
+            break :blk std.process.Child.run(.{
+                .allocator = b.allocator,
+                .argv = &[_][]const u8{ "bash", "./scripts/download-ffmpeg.sh" },
+            }) catch |err| {
+                std.log.err("Failed to run download script: {}", .{err});
+                std.log.err("Please run manually: bash ./scripts/download-ffmpeg.sh", .{});
+                std.process.exit(1);
+            };
+        } else blk: {
+            // On Unix systems, make executable first then run
+            _ = std.process.Child.run(.{
+                .allocator = b.allocator,
+                .argv = &[_][]const u8{ "chmod", "+x", "./scripts/download-ffmpeg.sh" },
+            }) catch {};
 
-        // Run download script
-        const result = std.process.Child.run(.{
-            .allocator = b.allocator,
-            .argv = &[_][]const u8{"./scripts/download-ffmpeg.sh"},
-        }) catch |err| {
-            std.log.err("Failed to run download script: {}", .{err});
-            std.log.err("Please run manually: chmod +x ./scripts/download-ffmpeg.sh && ./scripts/download-ffmpeg.sh", .{});
-            std.process.exit(1);
+            break :blk std.process.Child.run(.{
+                .allocator = b.allocator,
+                .argv = &[_][]const u8{"./scripts/download-ffmpeg.sh"},
+            }) catch |err| {
+                std.log.err("Failed to run download script: {}", .{err});
+                std.log.err("Please run manually: chmod +x ./scripts/download-ffmpeg.sh && ./scripts/download-ffmpeg.sh", .{});
+                std.process.exit(1);
+            };
         };
 
         defer b.allocator.free(result.stdout);
@@ -102,7 +115,11 @@ fn setupEmbeddedFFmpegBuild(b: *std.Build, exe: *std.Build.Step.Compile, target:
             if (result.stderr.len > 0) {
                 std.log.err("Script error output: {s}", .{result.stderr});
             }
-            std.log.err("Please run manually: chmod +x ./scripts/download-ffmpeg.sh && ./scripts/download-ffmpeg.sh", .{});
+            const manual_cmd = if (builtin.os.tag == .windows)
+                "Please run manually: bash ./scripts/download-ffmpeg.sh"
+            else
+                "Please run manually: chmod +x ./scripts/download-ffmpeg.sh && ./scripts/download-ffmpeg.sh";
+            std.log.err("{s}", .{manual_cmd});
             std.process.exit(1);
         }
 

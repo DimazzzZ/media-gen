@@ -11,6 +11,7 @@ A fast, cross-platform command-line utility for generating test media files with
 
 - 🎬 **Video generation** with animated countdown timer
 - 🎵 **Audio generation** with customizable sine wave test tones
+- 🧙‍♂️ **Interactive mode** - Step-by-step wizard for easy configuration
 - 🎯 **Multiple formats** - MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
 - ⚙️ **Highly configurable** - resolution, bitrate, duration, codecs, frequency
 - 🚀 **Cross-platform** - Windows, macOS, Linux (Intel & ARM)
@@ -37,6 +38,14 @@ Download the latest release for your platform:
 
 ### Basic Usage
 
+#### Interactive Mode (Recommended for New Users)
+```bash
+# Launch interactive wizard - guided setup with prompts
+./media-gen i
+```
+*Perfect for beginners or when exploring different options. The wizard guides you through each step with helpful prompts and default values.*
+
+#### Command Line Interface (CLI)
 ```bash
 # Generate a 10-second countdown video
 ./media-gen video --duration 10 --output countdown.mp4
@@ -50,6 +59,21 @@ Download the latest release for your platform:
 # Show help
 ./media-gen help
 ```
+*Ideal for automation, scripting, or when you know exactly what parameters you need.*
+
+#### When to Use Each Approach
+
+- **Use Interactive Mode** when:
+  - You're new to media-gen
+  - You want to explore different configuration options
+  - You prefer guided setup with validation
+  - You need help understanding available parameters
+
+- **Use CLI Mode** when:
+  - You're automating media generation
+  - You know the exact parameters you need
+  - You're writing scripts or batch operations
+  - You prefer direct command execution
 
 ## 📖 Usage Guide
 
@@ -285,9 +309,9 @@ chmod +x media-gen
 ### Getting Help
 
 - 📖 Check this README for usage examples
-- � Breowse [EXAMPLES.md](EXAMPLES.md) for comprehensive scenarios
-- � [Reqport bugs](https://github.com/DimazzzZ/media-gen/issues)
-- � [Rtequest features](https://github.com/DimazzzZ/media-gen/issues)
+- Browse [EXAMPLES.md](EXAMPLES.md) for comprehensive scenarios
+- [Report bugs](https://github.com/DimazzzZ/media-gen/issues)
+- [Request features](https://github.com/DimazzzZ/media-gen/issues)
 - 💬 [Start a discussion](https://github.com/DimazzzZ/media-gen/discussions)
 
 ## 📄 License

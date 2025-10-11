@@ -19,6 +19,19 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
     const sample_rate_str = try std.fmt.allocPrint(allocator, "{}", .{config.sample_rate});
     defer allocator.free(sample_rate_str);
 
+    // Auto-select codec based on format if using default codec
+    const codec = if (std.mem.eql(u8, config.codec, "libmp3lame")) blk: {
+        if (std.mem.eql(u8, config.format, "aac")) {
+            break :blk "aac";
+        } else if (std.mem.eql(u8, config.format, "flac")) {
+            break :blk "flac";
+        } else if (std.mem.eql(u8, config.format, "wav")) {
+            break :blk "pcm_s16le";
+        } else {
+            break :blk config.codec;
+        }
+    } else config.codec;
+
     // Build FFmpeg command array
     var cmd_args: []const []const u8 = undefined;
 
@@ -32,7 +45,7 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
             "-i",
             filter,
             "-c:a",
-            config.codec,
+            codec,
             "-ar",
             sample_rate_str,
             config.output,
@@ -47,7 +60,7 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
             "-i",
             filter,
             "-c:a",
-            config.codec,
+            codec,
             "-b:a",
             config.bitrate,
             "-ar",

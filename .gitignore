@@ -17,6 +17,7 @@ Thumbs.db
 *.log
 
 # Test artifacts
+test-media
 test_*.mp4
 test_*.mp3
 test_*.avi

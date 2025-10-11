@@ -92,6 +92,8 @@ Create test audio files with sine wave tones:
 ./media-gen audio --format aac --output test.aac
 ```
 
+📚 **Want more examples?** Check out [EXAMPLES.md](EXAMPLES.md) for comprehensive usage scenarios including mobile app testing, web development, social media formats, and batch generation scripts.
+
 ## ⚙️ Configuration Options
 
 ### Video Options
@@ -261,8 +263,9 @@ chmod +x media-gen
 ### Getting Help
 
 - 📖 Check this README for usage examples
-- 🐛 [Report bugs](https://github.com/DimazzzZ/media-gen/issues)
-- 💡 [Request features](https://github.com/DimazzzZ/media-gen/issues)
+- � Breowse [EXAMPLES.md](EXAMPLES.md) for comprehensive scenarios
+- � [Reqport bugs](https://github.com/DimazzzZ/media-gen/issues)
+- � [Rtequest features](https://github.com/DimazzzZ/media-gen/issues)
 - 💬 [Start a discussion](https://github.com/DimazzzZ/media-gen/discussions)
 
 ## 📄 License

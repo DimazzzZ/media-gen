@@ -2,10 +2,10 @@ extends: default
 
 rules:
   line-length:
-    max: 120  # Увеличиваем лимит для GitHub Actions
-  document-start: disable  # Отключаем требование ---
+    max: 120  # Increase limit for GitHub Actions
+  document-start: disable  # Disable requirement for ---
   truthy:
-    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']  # Разрешаем on/off
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']  # Allow on/off values
   comments:
     min-spaces-from-content: 1
   brackets:

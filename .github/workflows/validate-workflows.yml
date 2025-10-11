@@ -21,7 +21,7 @@ jobs:
 
           # Check if workflow files are valid YAML
           for file in .github/workflows/*.yml .github/workflows/*.yaml; do
-            if [-f "$file"]; then
+            if [ -f "$file"]; then
               echo "Validating $file"
               python3 -c "
           import yaml
@@ -45,7 +45,7 @@ jobs:
           echo "Checking for required fields..."
 
           for file in .github/workflows/*.yml .github/workflows/*.yaml; do
-            if [-f "$file"]; then
+            if [ -f "$file"]; then
               echo "Checking $file for required fields..."
 
               if ! grep -q "^name:" "$file"; then
@@ -71,8 +71,8 @@ jobs:
         run: |
           echo "Checking script permissions..."
 
-          if [-f "scripts/download-ffmpeg.sh"]; then
-            if [-x "scripts/download-ffmpeg.sh"]; then
+          if [ -f "scripts/download-ffmpeg.sh"]; then
+            if [ -x "scripts/download-ffmpeg.sh"]; then
               echo "✅ download-ffmpeg.sh is executable"
             else
               echo "❌ download-ffmpeg.sh is not executable"

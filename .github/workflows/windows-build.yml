@@ -49,7 +49,7 @@ jobs:
             zig-toolchain-win-
 
       - name: Setup Zig (Cached)
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
 
@@ -131,7 +131,7 @@ jobs:
 
           # Build with optimal flags
           zig build -Dtarget=x86_64-windows -Doptimize=$optimizeLevel \
-            --cache-dir "$env:RUNNER_TEMP\zig-cache" --parallel
+            --cache-dir "$env:RUNNER_TEMP\zig-cache"
 
           $stopwatch.Stop()
           $buildTime = $stopwatch.Elapsed.TotalSeconds

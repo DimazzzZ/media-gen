@@ -58,7 +58,7 @@ jobs:
             ffmpeg-binaries-${{ runner.os }}-
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
 
@@ -112,7 +112,7 @@ jobs:
             ffmpeg-binaries-${{ matrix.os }}-
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
 
@@ -140,7 +140,7 @@ jobs:
       - name: Build application (Windows)
         if: matrix.os == 'windows-2022'
         shell: pwsh
-        run: zig build --parallel
+        run: zig build
 
       # Optimized build command per platform (Unix)
       - name: Build application (Unix)
@@ -242,7 +242,7 @@ jobs:
             ffmpeg-binaries-${{ runner.os }}-
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
 

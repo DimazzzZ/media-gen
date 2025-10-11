@@ -66,7 +66,7 @@ jobs:
             windows-deps-
 
       - name: Setup Zig (with retry)
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
         # Retry setup if it fails due to network issues
@@ -98,7 +98,7 @@ jobs:
       - name: Build for ${{ matrix.target }} (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
       - name: Build for ${{ matrix.target }} (Unix)
         if: matrix.os != 'windows'
@@ -132,7 +132,11 @@ jobs:
         run: |
           echo "Artifact upload failed, but build succeeded"
           echo "Artifact: ${{ matrix.artifact }}"
-          ls -la ${{ matrix.artifact }} || dir ${{ matrix.artifact }}
+          if (Test-Path "${{ matrix.artifact }}") {
+            Get-Item "${{ matrix.artifact }}"
+          } else {
+            Write-Host "Artifact not found"
+          }
           echo "Build completed successfully despite upload failure" >> build-status.txt
 
   # Release job removed - use manual-release.yml workflow instead

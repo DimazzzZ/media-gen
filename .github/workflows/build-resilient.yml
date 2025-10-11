@@ -60,7 +60,7 @@ jobs:
             ffmpeg-resilient-${{ matrix.os }}-
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
 
@@ -165,7 +165,7 @@ jobs:
             Write-Host "🔨 Build attempt $attempt/$maxAttempts..."
 
             $env:ZIG_GLOBAL_CACHE_DIR = "$env:RUNNER_TEMP\zig-cache"
-            zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel
+            zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
             if ($LASTEXITCODE -eq 0) {
               Write-Host "✅ Build successful"

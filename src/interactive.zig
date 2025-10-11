@@ -408,7 +408,7 @@ fn freeConfig(allocator: std.mem.Allocator, config: *const InteractiveConfig) vo
 
 fn readUserInput(allocator: std.mem.Allocator) ![]u8 {
     var buffer: [1024]u8 = undefined;
-    const bytes_read = try std.posix.read(0, buffer[0..]);
+    const bytes_read = try std.posix.read(@as(std.posix.fd_t, 0), buffer[0..]);
 
     if (bytes_read > 0) {
         // Remove trailing newline if present

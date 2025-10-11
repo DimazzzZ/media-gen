@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "🚀 Fast FFmpeg download for Windows starting..." -ForegroundColor Green
+Write-Host "[START] Fast FFmpeg download for Windows starting..." -ForegroundColor Green
 
 # Create output directory
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 $ffmpegPath = Join-Path $OutputDir "ffmpeg.exe"
 if ((Test-Path $ffmpegPath) -and -not $Force) {
     $fileSize = (Get-Item $ffmpegPath).Length
-    Write-Host "✅ FFmpeg already exists ($([math]::Round($fileSize / 1MB, 2)) MB)" -ForegroundColor Green
+    Write-Host "[OK] FFmpeg already exists ($([math]::Round($fileSize / 1MB, 2)) MB)" -ForegroundColor Green
     exit 0
 }
 
@@ -27,7 +27,7 @@ try {
     $tempZip = Join-Path $env:TEMP "ffmpeg-win64-fast.zip"
     $tempExtract = Join-Path $env:TEMP "ffmpeg-extract-fast"
     
-    Write-Host "📥 Downloading FFmpeg from GitHub releases..." -ForegroundColor Yellow
+    Write-Host "[DOWNLOAD] Downloading FFmpeg from GitHub releases..." -ForegroundColor Yellow
     
     # Use .NET WebClient for faster download
     $webClient = New-Object System.Net.WebClient
@@ -40,20 +40,20 @@ try {
     
     $downloadTime = $stopwatch.Elapsed.TotalSeconds
     $fileSize = (Get-Item $tempZip).Length
-    Write-Host "⬇️ Downloaded $([math]::Round($fileSize / 1MB, 2)) MB in $([math]::Round($downloadTime, 2))s" -ForegroundColor Green
+    Write-Host "[DOWN] Downloaded $([math]::Round($fileSize / 1MB, 2)) MB in $([math]::Round($downloadTime, 2))s" -ForegroundColor Green
     
     # Fast extraction
-    Write-Host "📦 Extracting archive..." -ForegroundColor Yellow
+    Write-Host "[EXTRACT] Extracting archive..." -ForegroundColor Yellow
     $extractStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
     
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::ExtractToDirectory($tempZip, $tempExtract)
     
     $extractStopwatch.Stop()
-    Write-Host "📂 Extracted in $([math]::Round($extractStopwatch.Elapsed.TotalSeconds, 2))s" -ForegroundColor Green
+    Write-Host "[FOLDER] Extracted in $([math]::Round($extractStopwatch.Elapsed.TotalSeconds, 2))s" -ForegroundColor Green
     
     # Find FFmpeg executable efficiently
-    Write-Host "🔍 Locating FFmpeg executable..." -ForegroundColor Yellow
+    Write-Host "[SEARCH] Locating FFmpeg executable..." -ForegroundColor Yellow
     $ffmpegExe = Get-ChildItem -Path $tempExtract -Name "ffmpeg.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     
     if (-not $ffmpegExe) {
@@ -68,22 +68,22 @@ try {
     # Verify the copy
     if (Test-Path $ffmpegPath) {
         $finalSize = (Get-Item $ffmpegPath).Length
-        Write-Host "✅ FFmpeg ready: $([math]::Round($finalSize / 1MB, 2)) MB" -ForegroundColor Green
+        Write-Host "[OK] FFmpeg ready: $([math]::Round($finalSize / 1MB, 2)) MB" -ForegroundColor Green
         
         # Test FFmpeg
-        Write-Host "🧪 Testing FFmpeg..." -ForegroundColor Yellow
+        Write-Host "[TEST] Testing FFmpeg..." -ForegroundColor Yellow
         $testOutput = & $ffmpegPath -version 2>&1 | Select-Object -First 1
         if ($testOutput -match "ffmpeg version") {
-            Write-Host "✅ FFmpeg test passed: $testOutput" -ForegroundColor Green
+            Write-Host "[OK] FFmpeg test passed: $testOutput" -ForegroundColor Green
         } else {
-            Write-Warning "⚠️ FFmpeg test inconclusive"
+            Write-Warning "[WARNING] FFmpeg test inconclusive"
         }
     } else {
         throw "Failed to copy FFmpeg executable"
     }
     
 } catch {
-    Write-Error "❌ FFmpeg download failed: $($_.Exception.Message)"
+    Write-Error "[ERROR] FFmpeg download failed: $($_.Exception.Message)"
     exit 1
 } finally {
     # Cleanup
@@ -91,4 +91,4 @@ try {
     if (Test-Path $tempExtract) { Remove-Item $tempExtract -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
-Write-Host "🎉 FFmpeg download completed successfully!" -ForegroundColor Green
+Write-Host "[SUCCESS] FFmpeg download completed successfully!" -ForegroundColor Green

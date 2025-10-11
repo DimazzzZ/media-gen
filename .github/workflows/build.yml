@@ -1,10 +1,11 @@
 name: Build and Test
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Test Suite"]
+    types:
+      - completed
     branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       platforms:
@@ -18,47 +19,10 @@ permissions:
   packages: read
 
 jobs:
-  test:
-    name: Run Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
-        with:
-          version: 0.15.1
-
-      - name: Run unit tests
-        run: zig build test
-
-      - name: Build for testing (FFmpeg downloaded automatically)
-        run: zig build
-
-      - name: Run integration tests
-        run: zig build test-integration
-
-      - name: Test CLI functionality
-        run: |
-          # Create test-media directory
-          mkdir -p test-media
-          
-          # Test video generation
-          ./zig-out/bin/media-gen video --duration 2 --output test-media/ci_test_video.mp4
-          test -f test-media/ci_test_video.mp4
-          
-          # Test audio generation
-          ./zig-out/bin/media-gen audio --duration 2 --output test-media/ci_test_audio.mp3
-          test -f test-media/ci_test_audio.mp3
-          
-          # Test help command
-          ./zig-out/bin/media-gen help
-
   build:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
-    needs: test
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     strategy:
       matrix:
         include:

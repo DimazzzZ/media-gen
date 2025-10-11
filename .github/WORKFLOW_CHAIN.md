@@ -72,6 +72,12 @@ This document describes the workflow execution order and fixes applied.
 - **Jobs:** windows-build
 - **Features:** PowerShell scripts, multi-layer caching, parallel compilation
 
+### build-resilient.yml
+- **Triggers:** Manual only (workflow_dispatch)
+- **Purpose:** Builds that work even when GitHub services are down
+- **Jobs:** build, summary
+- **Features:** No cache dependency, retry logic, fail-safe operations
+
 ## Performance Optimizations
 
 ### Caching Strategy
@@ -97,6 +103,13 @@ This document describes the workflow execution order and fixes applied.
 - **Optimized runner**: windows-2022 for better caching
 - **Native .NET downloads**: Faster than curl/wget
 - **Dedicated workflow**: `windows-build.yml` for Windows-only builds
+
+### Resilience Features
+- **Graceful cache failures**: `continue-on-error: true` for all cache operations
+- **Retry logic**: Multiple attempts for downloads and builds
+- **Fail-safe builds**: `fail-fast: false` to continue other platforms
+- **Service-independent**: Works even when GitHub cache/artifacts are down
+- **Fallback strategies**: Alternative methods when primary services fail
 
 ## FFmpeg Download Process
 

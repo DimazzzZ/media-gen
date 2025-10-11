@@ -53,7 +53,10 @@ jobs:
     name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     needs: validate
+    # Continue building other platforms even if one fails
+    continue-on-error: false
     strategy:
+      fail-fast: false  # Don't cancel other builds if one fails
       matrix:
         include:
           - os: linux
@@ -79,6 +82,7 @@ jobs:
 
       - name: Cache FFmpeg binaries
         uses: actions/cache@v4
+        continue-on-error: true  # Don't fail if cache service is down
         with:
           path: src/vendor/ffmpeg
           key: ffmpeg-binaries-${{ matrix.os }}-v1
@@ -92,6 +96,7 @@ jobs:
 
       - name: Cache Zig build
         uses: actions/cache@v4
+        continue-on-error: true  # Don't fail if cache service is down
         with:
           path: |
             .zig-cache

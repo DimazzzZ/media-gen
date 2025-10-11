@@ -10,19 +10,19 @@ This project uses the following workflows in a specific sequence:
 - **Execution time**: ~1-2 minutes
 
 ### 2. `quick-test.yml` - Quick Tests  
-- **Trigger**: Push/PR to main/develop
+- **Trigger**: After `validate-workflows.yml` succeeds, or PR/manual
 - **Purpose**: Fast functionality check (1 sec video/audio)
 - **Execution time**: ~3-5 minutes
 
 ## Periodic/Manual Workflows
 
 ### 3. `test.yml` - Full Testing
-- **Trigger**: Schedule (daily at 2:00 UTC) or manual run
+- **Trigger**: After `quick-test.yml` succeeds, schedule (daily at 2:00 UTC), or manual run
 - **Purpose**: Complete unit/integration/performance tests on all platforms
 - **Execution time**: ~15-30 minutes
 
 ### 4. `build.yml` - Build Artifacts
-- **Trigger**: Push to main (only on code changes) or manual run
+- **Trigger**: After `test.yml` succeeds on main branch, or manual run
 - **Purpose**: Build binaries for all platforms (Linux, Windows, macOS Intel/ARM)
 - **Execution time**: ~10-15 minutes
 - **Artifacts**: Ready-to-use executable files
@@ -39,17 +39,22 @@ This project uses the following workflows in a specific sequence:
 
 ```mermaid
 graph TD
-    A[Push/PR] --> B[validate-workflows.yml]
-    A --> C[quick-test.yml]
-    
-    D[Push to main] --> E[build.yml]
+    A[Push to main/develop] --> B[validate-workflows.yml]
+    B --> |success| C[quick-test.yml]
+    C --> |success| D[test.yml - Full Tests]
+    D --> |success + main branch| E[build.yml]
     E --> F[Artifacts Ready]
     
     G[Manual Run] --> H[manual-release.yml]
     H --> I[Downloads artifacts from build.yml]
     I --> J[Creates GitHub Release]
     
-    K[Schedule/Manual] --> L[test.yml]
+    K[Schedule] --> D
+    L[Manual] --> D
+    M[Manual] --> E
+    
+    N[PR] --> B
+    N --> C
 ```
 
 ## Optimizations

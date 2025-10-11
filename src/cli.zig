@@ -25,16 +25,17 @@ pub const AudioConfig = struct {
     bitrate: []const u8 = "128k",
     format: []const u8 = "mp3",
     codec: []const u8 = "libmp3lame",
+    frequency: u32 = 440, // Hz for sine wave
     output: []const u8 = "output.mp3",
 };
 
 pub fn printHelp() !void {
-    print("Media Generator\n", .{});
+    print("Media Generator - Embedded FFmpeg Edition\n", .{});
     print("Usage: media-gen <command> [options]\n\n", .{});
     print("Commands:\n", .{});
-    print("  video    Generate fake video file\n", .{});
-    print("  audio    Generate fake audio file\n", .{});
-    print("  help     Show this help message\n\n", .{});
+    print("  video        Generate video file with countdown timer\n", .{});
+    print("  audio        Generate audio file with test tones\n", .{});
+    print("  help         Show this help message\n\n", .{});
     print("Video options:\n", .{});
     print("  --width <width>        Video width (default: 1920)\n", .{});
     print("  --height <height>      Video height (default: 1080)\n", .{});
@@ -43,11 +44,11 @@ pub fn printHelp() !void {
     print("  --bitrate <bitrate>   Video bitrate (default: 1000k)\n", .{});
     print("  --format <format>     Output format (mp4, avi, mov, mkv)\n", .{});
     print("  --codec <codec>       Video codec (libx264, libx265, libvpx-vp9)\n", .{});
-
     print("  --output <filename>   Output filename (default: output.mp4)\n\n", .{});
     print("Audio options:\n", .{});
     print("  --duration <seconds>   Duration in seconds (default: 30)\n", .{});
     print("  --sample-rate <rate>   Sample rate (default: 44100)\n", .{});
+    print("  --frequency <hz>      Sine wave frequency (default: 440)\n", .{});
     print("  --bitrate <bitrate>   Audio bitrate (default: 128k)\n", .{});
     print("  --format <format>     Output format (mp3, wav, aac, flac)\n", .{});
     print("  --codec <codec>       Audio codec (libmp3lame, pcm_s16le, aac)\n", .{});
@@ -55,6 +56,8 @@ pub fn printHelp() !void {
     print("Examples:\n", .{});
     print("  media-gen video --width 1280 --height 720 --duration 60 --output test.mp4\n", .{});
     print("  media-gen audio --bitrate 320k --duration 120 --format wav --output test.wav\n", .{});
+    print("  media-gen audio --frequency 880 --sample-rate 48000 --output tone.wav\n", .{});
+    print("\nNote: FFmpeg is embedded - no external installation required!\n", .{});
 }
 
 pub fn parseAndExecute(allocator: std.mem.Allocator, args: [][:0]u8) !void {
@@ -121,6 +124,9 @@ pub fn parseAudioArgs(args: [][:0]u8, config: *AudioConfig) !void {
             i += 1;
         } else if (std.mem.eql(u8, arg, "--sample-rate") and i + 1 < args.len) {
             config.sample_rate = try std.fmt.parseInt(u32, args[i + 1], 10);
+            i += 1;
+        } else if (std.mem.eql(u8, arg, "--frequency") and i + 1 < args.len) {
+            config.frequency = try std.fmt.parseInt(u32, args[i + 1], 10);
             i += 1;
         } else if (std.mem.eql(u8, arg, "--bitrate") and i + 1 < args.len) {
             config.bitrate = args[i + 1];

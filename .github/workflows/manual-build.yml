@@ -77,7 +77,7 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Build for ${{ matrix.target }}
+      - name: Build for ${{ matrix.target }} (FFmpeg embedded automatically)
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=${{ github.event.inputs.optimize }}
 
       - name: Copy artifact (Unix)

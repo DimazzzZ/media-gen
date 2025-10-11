@@ -2,17 +2,20 @@
 
 A fast, cross-platform command-line utility for generating test media files with customizable parameters. Perfect for testing applications, creating placeholder content, or generating media samples.
 
+**No external dependencies required** - FFmpeg is embedded directly into the executable!
+
 [![Build and Test](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml)
 [![Test Suite](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml)
 
 ## ✨ Features
 
 - 🎬 **Video generation** with animated countdown timer
-- 🎵 **Audio generation** with customizable test tones
+- 🎵 **Audio generation** with customizable sine wave test tones
 - 🎯 **Multiple formats** - MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
-- ⚙️ **Highly configurable** - resolution, bitrate, duration, codecs
+- ⚙️ **Highly configurable** - resolution, bitrate, duration, codecs, frequency
 - 🚀 **Cross-platform** - Windows, macOS, Linux (Intel & ARM)
 - ⚡ **Fast** - Built with Zig for optimal performance
+- 📦 **Zero dependencies** - FFmpeg embedded, no installation required
 
 ## 🚀 Quick Start
 
@@ -26,10 +29,11 @@ Download the latest release for your platform:
 
 ### Requirements
 
-- **FFmpeg** must be installed on your system
-  - **Ubuntu/Debian**: `sudo apt install ffmpeg`
-  - **macOS**: `brew install ffmpeg`
-  - **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+**None!** FFmpeg is embedded directly into the executable.
+
+- No external dependencies to install
+- No system configuration required
+- Works out of the box on all supported platforms
 
 ### Basic Usage
 
@@ -39,6 +43,9 @@ Download the latest release for your platform:
 
 # Generate a 30-second audio test tone
 ./media-gen audio --duration 30 --output test-tone.mp3
+
+# Generate custom frequency audio
+./media-gen audio --frequency 880 --duration 5 --output tone.wav
 
 # Show help
 ./media-gen help
@@ -115,6 +122,18 @@ Create test audio files with sine wave tones:
 |--------|-------------|---------|----------|
 | `--duration` | Duration in seconds | 30 | 10, 60, 300 |
 | `--sample-rate` | Sample rate in Hz | 44100 | 22050, 48000, 96000 |
+| `--frequency` | Sine wave frequency in Hz | 440 | 220, 880, 1000 |
+| `--bitrate` | Audio bitrate | 128k | 96k, 192k, 320k |
+| `--format` | Output format | mp3 | mp3, wav, aac, flac |
+| `--codec` | Audio codec | libmp3lame | pcm_s16le, aac, flac |
+| `--output` | Output filename | output.mp3 | my-audio.wav |
+
+### Audio Options
+
+| Option | Description | Default | Examples |
+|--------|-------------|---------|----------|
+| `--duration` | Duration in seconds | 30 | 10, 60, 300 |
+| `--sample-rate` | Sample rate in Hz | 44100 | 22050, 48000, 96000 |
 | `--bitrate` | Audio bitrate | 128k | 96k, 320k, 1411k |
 | `--format` | Output format | mp3 | mp3, wav, aac, flac |
 | `--codec` | Audio codec | libmp3lame | libmp3lame, pcm_s16le, aac |
@@ -159,7 +178,7 @@ Create test audio files with sine wave tones:
 
 ### Prerequisites
 - [Zig 0.15+](https://ziglang.org/download/)
-- FFmpeg installed on your system
+- Internet connection (for automatic FFmpeg download)
 
 ### Build Commands
 ```bash
@@ -167,15 +186,18 @@ Create test audio files with sine wave tones:
 git clone https://github.com/DimazzzZ/media-gen.git
 cd media-gen
 
-# Build for your platform
+# Build for your platform (FFmpeg downloaded automatically)
 zig build
 
 # Run tests
 zig build test
+zig build test-integration
 
 # Build for all platforms
 ./build-all.sh
 ```
+
+**Note:** FFmpeg binaries are downloaded automatically during the first build. No manual installation required!
 
 ### Cross-compilation
 ```bash

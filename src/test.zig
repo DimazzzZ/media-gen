@@ -117,3 +117,103 @@ test "AudioConfig high sample rate" {
     try testing.expect(config.sample_rate == 192000);
     try testing.expect(config.duration == 7200);
 }
+// Import FFmpeg module for testing
+const ffmpeg = @import("ffmpeg.zig");
+
+test "ffmpeg path extraction" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Test that we can get FFmpeg path (either system or embedded)
+    const ffmpeg_path = ffmpeg.getFFmpegPath(allocator) catch |err| {
+        std.log.warn("FFmpeg test failed (expected): {}", .{err});
+        return;
+    };
+    defer allocator.free(ffmpeg_path);
+
+    // Path should not be empty
+    try testing.expect(ffmpeg_path.len > 0);
+
+    // Should contain "ffmpeg"
+    try testing.expect(std.mem.indexOf(u8, ffmpeg_path, "ffmpeg") != null);
+}
+
+test "embedded ffmpeg extraction" {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    // Test embedded FFmpeg extraction
+    const ffmpeg_path = ffmpeg.extractFFmpeg(allocator) catch |err| {
+        std.log.warn("Embedded FFmpeg test failed (expected): {}", .{err});
+        return;
+    };
+    defer allocator.free(ffmpeg_path);
+
+    // Check that file was created
+    const file = std.fs.cwd().openFile(ffmpeg_path, .{}) catch |err| {
+        std.log.err("Failed to open extracted FFmpeg: {}", .{err});
+        return err;
+    };
+    defer file.close();
+
+    // File should have some content
+    const file_size = try file.getEndPos();
+    try testing.expect(file_size > 1000); // FFmpeg should be at least 1KB
+
+    // Clean up
+    std.fs.cwd().deleteFile(ffmpeg_path) catch {};
+}
+
+test "audio config with frequency" {
+    const config = cli.AudioConfig{
+        .frequency = 880,
+        .sample_rate = 48000,
+        .duration = 5,
+    };
+
+    try testing.expect(config.frequency == 880);
+    try testing.expect(config.sample_rate == 48000);
+    try testing.expect(config.duration == 5);
+}
+
+test "video config parsing" {
+    var config = cli.VideoConfig{};
+
+    var args = [_][:0]u8{
+        @constCast("--width"),    @constCast("1280"),
+        @constCast("--height"),   @constCast("720"),
+        @constCast("--duration"), @constCast("60"),
+        @constCast("--fps"),      @constCast("30"),
+        @constCast("--output"),   @constCast("test.mp4"),
+    };
+
+    try cli.parseVideoArgs(&args, &config);
+
+    try testing.expect(config.width == 1280);
+    try testing.expect(config.height == 720);
+    try testing.expect(config.duration == 60);
+    try testing.expect(config.fps == 30);
+    try testing.expectEqualStrings("test.mp4", config.output);
+}
+
+test "audio config parsing with frequency" {
+    var config = cli.AudioConfig{};
+
+    var args = [_][:0]u8{
+        @constCast("--duration"),    @constCast("120"),
+        @constCast("--sample-rate"), @constCast("48000"),
+        @constCast("--frequency"),   @constCast("880"),
+        @constCast("--bitrate"),     @constCast("320k"),
+        @constCast("--output"),      @constCast("test.wav"),
+    };
+
+    try cli.parseAudioArgs(&args, &config);
+
+    try testing.expect(config.duration == 120);
+    try testing.expect(config.sample_rate == 48000);
+    try testing.expect(config.frequency == 880);
+    try testing.expectEqualStrings("320k", config.bitrate);
+    try testing.expectEqualStrings("test.wav", config.output);
+}

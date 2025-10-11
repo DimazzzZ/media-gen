@@ -1,6 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const cli = @import("../cli.zig");
+const ffmpeg = @import("../ffmpeg.zig");
 
 pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
     print("Generating audio with parameters:\n", .{});
@@ -32,13 +33,20 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
         }
     } else config.codec;
 
+    // Get FFmpeg path (system or embedded)
+    const ffmpeg_path = ffmpeg.getFFmpegPath(allocator) catch |err| {
+        print("Error: Cannot find or extract FFmpeg: {}\n", .{err});
+        return;
+    };
+    defer allocator.free(ffmpeg_path);
+
     // Build FFmpeg command array
     var cmd_args: []const []const u8 = undefined;
 
     if (std.mem.eql(u8, config.format, "wav")) {
         // WAV doesn't need bitrate
         cmd_args = &[_][]const u8{
-            "ffmpeg",
+            ffmpeg_path,
             "-y", // Overwrite output file
             "-f",
             "lavfi",
@@ -53,7 +61,7 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
     } else {
         // Other formats need bitrate
         cmd_args = &[_][]const u8{
-            "ffmpeg",
+            ffmpeg_path,
             "-y", // Overwrite output file
             "-f",
             "lavfi",
@@ -75,7 +83,6 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
         .argv = cmd_args,
     }) catch |err| {
         print("Error executing FFmpeg: {}\n", .{err});
-        print("Make sure FFmpeg is installed and available in PATH\n", .{});
         return;
     };
 

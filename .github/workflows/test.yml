@@ -49,41 +49,28 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Install FFmpeg (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Install FFmpeg (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install ffmpeg
-
-      - name: Install FFmpeg (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          choco install ffmpeg -y
-          echo "C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin" >> $GITHUB_PATH
-
-      - name: Build application
+      - name: Build application (FFmpeg downloaded automatically)
         run: zig build
 
       - name: Test video generation
         shell: bash
         run: |
+          # Create test-media directory
+          mkdir -p test-media
+          
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./zig-out/bin/media-gen.exe video --duration 2 --width 640 --height 480 --output test_video.mp4
+            ./zig-out/bin/media-gen.exe video --duration 2 --width 640 --height 480 --output test-media/test_video.mp4
           else
-            ./zig-out/bin/media-gen video --duration 2 --width 640 --height 480 --output test_video.mp4
+            ./zig-out/bin/media-gen video --duration 2 --width 640 --height 480 --output test-media/test_video.mp4
           fi
           
           # Check if file exists and has reasonable size
-          if [[ ! -f test_video.mp4 ]]; then
+          if [[ ! -f test-media/test_video.mp4 ]]; then
             echo "Video file was not created"
             exit 1
           fi
           
-          file_size=$(stat -f%z test_video.mp4 2>/dev/null || stat -c%s test_video.mp4)
+          file_size=$(stat -f%z test-media/test_video.mp4 2>/dev/null || stat -c%s test-media/test_video.mp4)
           if [[ $file_size -lt 1000 ]]; then
             echo "Video file is too small: $file_size bytes"
             exit 1
@@ -95,18 +82,18 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./zig-out/bin/media-gen.exe audio --duration 2 --sample-rate 44100 --output test_audio.mp3
+            ./zig-out/bin/media-gen.exe audio --duration 2 --sample-rate 44100 --output test-media/test_audio.mp3
           else
-            ./zig-out/bin/media-gen audio --duration 2 --sample-rate 44100 --output test_audio.mp3
+            ./zig-out/bin/media-gen audio --duration 2 --sample-rate 44100 --output test-media/test_audio.mp3
           fi
           
           # Check if file exists and has reasonable size
-          if [[ ! -f test_audio.mp3 ]]; then
+          if [[ ! -f test-media/test_audio.mp3 ]]; then
             echo "Audio file was not created"
             exit 1
           fi
           
-          file_size=$(stat -f%z test_audio.mp3 2>/dev/null || stat -c%s test_audio.mp3)
+          file_size=$(stat -f%z test-media/test_audio.mp3 2>/dev/null || stat -c%s test-media/test_audio.mp3)
           if [[ $file_size -lt 1000 ]]; then
             echo "Audio file is too small: $file_size bytes"
             exit 1
@@ -151,26 +138,22 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Build application
+      - name: Build application (embedded FFmpeg)
         run: zig build -Doptimize=ReleaseFast
 
       - name: Performance test - Video generation
         run: |
+          mkdir -p test-media
           echo "Testing video generation performance..."
-          time ./zig-out/bin/media-gen video --duration 10 --output perf_test_video.mp4
+          time ./zig-out/bin/media-gen video --duration 10 --output test-media/perf_test_video.mp4
           
-          file_size=$(stat -c%s perf_test_video.mp4)
+          file_size=$(stat -c%s test-media/perf_test_video.mp4)
           echo "Generated video size: $file_size bytes"
 
       - name: Performance test - Audio generation
         run: |
           echo "Testing audio generation performance..."
-          time ./zig-out/bin/media-gen audio --duration 10 --output perf_test_audio.mp3
+          time ./zig-out/bin/media-gen audio --duration 10 --output test-media/perf_test_audio.mp3
           
-          file_size=$(stat -c%s perf_test_audio.mp3)
+          file_size=$(stat -c%s test-media/perf_test_audio.mp3)
           echo "Generated audio size: $file_size bytes"

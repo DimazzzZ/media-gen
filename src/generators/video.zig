@@ -1,6 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const cli = @import("../cli.zig");
+const ffmpeg = @import("../ffmpeg.zig");
 
 pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
     print("Generating video with parameters:\n", .{});
@@ -17,9 +18,16 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
     const filter = try std.fmt.allocPrint(allocator, "color=c=black:size={}x{}:duration={}:rate={},drawtext=text='%{{eif\\:floor({}-t)\\:d}}.%{{eif\\:floor((({}-t)-floor({}-t))*100)\\:d\\:2}}':fontsize=200:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2", .{ config.width, config.height, config.duration, config.fps, config.duration, config.duration, config.duration });
     defer allocator.free(filter);
 
+    // Get FFmpeg path (system or embedded)
+    const ffmpeg_path = ffmpeg.getFFmpegPath(allocator) catch |err| {
+        print("Error: Cannot find or extract FFmpeg: {}\n", .{err});
+        return;
+    };
+    defer allocator.free(ffmpeg_path);
+
     // Build FFmpeg command array
     const cmd_args = [_][]const u8{
-        "ffmpeg",
+        ffmpeg_path,
         "-y", // Overwrite output file
         "-f",
         "lavfi",
@@ -38,7 +46,6 @@ pub fn generate(allocator: std.mem.Allocator, config: cli.VideoConfig) !void {
         .argv = &cmd_args,
     }) catch |err| {
         print("Error executing FFmpeg: {}\n", .{err});
-        print("Make sure FFmpeg is installed and available in PATH\n", .{});
         return;
     };
 

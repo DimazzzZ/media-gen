@@ -4,8 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Option to build standalone version (with embedded FFmpeg)
-    const standalone = b.option(bool, "standalone", "Build standalone version without external FFmpeg dependency") orelse false;
+    // This build always uses embedded FFmpeg
 
     // Create root module
     const root_module = b.createModule(.{
@@ -22,13 +21,8 @@ pub fn build(b: *std.Build) void {
     // Link system libraries
     exe.linkLibC();
 
-    if (standalone) {
-        // For standalone builds, we'll use a different approach
-        setupStandaloneBuild(b, exe, target);
-    } else {
-        // Regular build that requires system FFmpeg
-        setupRegularBuild(b, exe, target);
-    }
+    // Always build with embedded FFmpeg
+    setupEmbeddedFFmpegBuild(b, exe, target);
 
     b.installArtifact(exe);
 
@@ -44,7 +38,9 @@ pub fn build(b: *std.Build) void {
 
     // Tests
     const test_step = b.step("test", "Run unit tests");
+    const integration_test_step = b.step("test-integration", "Run integration tests");
 
+    // Unit tests
     const test_module = b.createModule(.{
         .root_source_file = b.path("src/test.zig"),
         .target = target,
@@ -57,30 +53,49 @@ pub fn build(b: *std.Build) void {
 
     const run_test = b.addRunArtifact(test_exe);
     test_step.dependOn(&run_test.step);
+
+    // Integration tests
+    const integration_test_module = b.createModule(.{
+        .root_source_file = b.path("src/integration_test.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const integration_test_exe = b.addTest(.{
+        .root_module = integration_test_module,
+    });
+
+    const run_integration_test = b.addRunArtifact(integration_test_exe);
+    integration_test_step.dependOn(&run_integration_test.step);
 }
 
-fn setupRegularBuild(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
-    _ = target;
-    // Regular build - expects system FFmpeg to be available
-    // No additional setup needed, FFmpeg will be called as external process
-
-    // Add build options for regular build
-    const options = b.addOptions();
-    options.addOption(bool, "standalone", false);
-    exe.root_module.addOptions("build_options", options);
-}
-
-fn setupStandaloneBuild(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
+fn setupEmbeddedFFmpegBuild(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
+    _ = exe;
     _ = target;
 
-    // For standalone builds, we have several options:
-    // 1. Bundle FFmpeg binaries
-    // 2. Use FFmpeg libraries statically linked
-    // 3. Implement basic media generation without FFmpeg
+    // Check if FFmpeg binaries exist, download if not
+    const vendor_dir = "src/vendor/ffmpeg";
+    std.fs.cwd().access(vendor_dir, .{}) catch {
+        std.log.info("FFmpeg binaries not found, downloading...", .{});
 
-    // For now, we'll use approach #1 - bundle FFmpeg binaries
-    // This will be implemented in the source code
-    const options = b.addOptions();
-    options.addOption(bool, "standalone", true);
-    exe.root_module.addOptions("build_options", options);
+        // Run download script
+        const result = std.process.Child.run(.{
+            .allocator = b.allocator,
+            .argv = &[_][]const u8{"./scripts/download-ffmpeg.sh"},
+        }) catch |err| {
+            std.log.err("Failed to run download script: {}", .{err});
+            std.log.err("Please run manually: ./scripts/download-ffmpeg.sh", .{});
+            std.process.exit(1);
+        };
+
+        if (result.term.Exited != 0) {
+            std.log.err("Download script failed with exit code: {}", .{result.term.Exited});
+            std.log.err("Please run manually: ./scripts/download-ffmpeg.sh", .{});
+            std.process.exit(1);
+        }
+
+        std.log.info("FFmpeg binaries downloaded successfully", .{});
+    };
+
+    std.log.info("Building with embedded FFmpeg binaries", .{});
 }

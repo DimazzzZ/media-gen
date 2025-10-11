@@ -13,6 +13,10 @@ on:
         default: 'linux,windows,macos'
         type: string
 
+permissions:
+  contents: write
+  packages: read
+
 jobs:
   test:
     name: Run Tests
@@ -26,26 +30,27 @@ jobs:
         with:
           version: 0.15.1
 
-      - name: Install FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Run tests
+      - name: Run unit tests
         run: zig build test
 
-      - name: Build for testing
+      - name: Build for testing (FFmpeg downloaded automatically)
         run: zig build
 
       - name: Run integration tests
+        run: zig build test-integration
+
+      - name: Test CLI functionality
         run: |
+          # Create test-media directory
+          mkdir -p test-media
+          
           # Test video generation
-          ./zig-out/bin/media-gen video --duration 2 --output test_video.mp4
-          test -f test_video.mp4
+          ./zig-out/bin/media-gen video --duration 2 --output test-media/ci_test_video.mp4
+          test -f test-media/ci_test_video.mp4
           
           # Test audio generation
-          ./zig-out/bin/media-gen audio --duration 2 --output test_audio.mp3
-          test -f test_audio.mp3
+          ./zig-out/bin/media-gen audio --duration 2 --output test-media/ci_test_audio.mp3
+          test -f test-media/ci_test_audio.mp3
           
           # Test help command
           ./zig-out/bin/media-gen help
@@ -116,12 +121,41 @@ jobs:
           path: artifacts
 
       - name: Create release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
+          name: "Media Generator v${{ github.run_number }} - Embedded FFmpeg Edition"
           draft: false
           prerelease: false
           files: artifacts/**/*
+          body: |
+            ## Media Generator - Embedded FFmpeg Edition
+            
+            **No external dependencies required!** FFmpeg is embedded directly into the executable.
+            
+            ### Downloads
+            - **Linux x86_64**: `media-gen-linux-x86_64`
+            - **Windows x86_64**: `media-gen-windows-x86_64.exe`
+            - **macOS Intel**: `media-gen-macos-x86_64`
+            - **macOS ARM64**: `media-gen-macos-arm64`
+            
+            ### Usage
+            ```bash
+            # Generate video with countdown
+            ./media-gen video --duration 10 --output countdown.mp4
+            
+            # Generate audio test tone
+            ./media-gen audio --frequency 440 --duration 5 --output tone.wav
+            
+            # Show help
+            ./media-gen help
+            ```
+            
+            ### Features
+            - 🎬 Video generation with animated countdown timer
+            - 🎵 Audio generation with configurable sine wave test tones
+            - 🎯 Multiple formats: MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
+            - 📦 Zero dependencies - FFmpeg embedded
+            - 🚀 Cross-platform support
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

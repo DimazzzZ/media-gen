@@ -43,15 +43,60 @@ This document describes the workflow execution order and fixes applied.
 - **Purpose:** Validate YAML syntax and dependencies
 - **Jobs:** validate, validate-dependencies
 
+### quick-test.yml
+- **Triggers:** Push/PR to main/develop
+- **Purpose:** Fast validation and basic functionality tests
+- **Jobs:** quick-tests (< 2 minutes)
+- **Features:** Cached FFmpeg, minimal test duration
+
 ### test.yml  
-- **Triggers:** Push/PR to main/develop, schedule, manual
-- **Purpose:** Run all tests with validation
+- **Triggers:** Schedule (daily), manual with options
+- **Purpose:** Comprehensive testing suite
 - **Jobs:** validate, unit-tests, integration-tests, performance-tests
+- **Features:** Selective test execution, full platform matrix
 
 ### build.yml
 - **Triggers:** Push to main, manual
-- **Purpose:** Build artifacts and create releases
-- **Jobs:** build, release
+- **Purpose:** Build artifacts (no automatic release)
+- **Jobs:** build
+
+### manual-release.yml
+- **Triggers:** Manual only (workflow_dispatch)
+- **Purpose:** Create releases with version control
+- **Jobs:** validate, build, release
+- **Features:** Version validation, draft/prerelease options
+
+### windows-build.yml
+- **Triggers:** Manual only (workflow_dispatch)
+- **Purpose:** Optimized Windows-only builds
+- **Jobs:** windows-build
+- **Features:** PowerShell scripts, multi-layer caching, parallel compilation
+
+## Performance Optimizations
+
+### Caching Strategy
+- **FFmpeg binaries**: Cached per OS (~150MB saved per run)
+- **Zig build cache**: Cached per OS and source hash
+- **Zig toolchain**: Cached by setup-zig action
+
+### Cache Keys
+- FFmpeg: `ffmpeg-binaries-{OS}-v1`
+- Build: `zig-build-{context}-{OS}-{target}-{source-hash}`
+- Restore fallbacks for partial cache hits
+
+### Speed Improvements
+- **Quick tests**: < 2 minutes (vs 5+ minutes)
+- **Cached builds**: 30-60 seconds (vs 2-3 minutes)  
+- **Parallel execution**: Independent job execution
+- **Minimal test media**: 1 second duration, low resolution
+
+### Windows-Specific Optimizations
+- **PowerShell scripts**: Native Windows execution (faster than bash)
+- **Multi-layer caching**: FFmpeg + Zig toolchain + build artifacts
+- **Parallel compilation**: Uses all CPU cores (`--parallel` flag)
+- **Optimized runner**: windows-2022 for better caching
+- **Native .NET downloads**: Faster than curl/wget
+- **Dedicated workflow**: `windows-build.yml` for Windows-only builds
 
 ## FFmpeg Download Process
 

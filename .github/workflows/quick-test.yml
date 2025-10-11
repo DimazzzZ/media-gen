@@ -1,0 +1,66 @@
+name: Quick Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  quick-tests:
+    name: Quick Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ runner.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ runner.os }}-
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-quick-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-quick-${{ runner.os }}-
+            zig-build-${{ runner.os }}-
+
+      - name: Run unit tests
+        run: zig build test
+
+      - name: Quick build test
+        run: zig build
+
+      - name: Quick functionality test
+        run: |
+          mkdir -p test-media
+          # Very quick tests - 1 second duration, small resolution
+          ./zig-out/bin/media-gen video --duration 1 --width 160 --height 120 --output test-media/quick_video.mp4
+          ./zig-out/bin/media-gen audio --duration 1 --sample-rate 8000 --output test-media/quick_audio.mp3
+          ./zig-out/bin/media-gen help
+          
+          # Verify files exist and have reasonable size
+          if [[ ! -f test-media/quick_video.mp4 ]] || [[ $(stat -c%s test-media/quick_video.mp4) -lt 100 ]]; then
+            echo "Video test failed"
+            exit 1
+          fi
+          
+          if [[ ! -f test-media/quick_audio.mp3 ]] || [[ $(stat -c%s test-media/quick_audio.mp3) -lt 100 ]]; then
+            echo "Audio test failed"
+            exit 1
+          fi
+          
+          echo "✅ Quick tests passed"

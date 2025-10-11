@@ -27,7 +27,7 @@ jobs:
             target: x86_64-linux
             artifact: media-gen-linux-x86_64
           - os: windows
-            runner: windows-latest
+            runner: windows-2022  # Use specific version for better caching
             target: x86_64-windows
             artifact: media-gen-windows-x86_64.exe
           - os: macos-intel
@@ -43,13 +43,57 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ matrix.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ matrix.os }}-
+
+      # Windows-specific: Cache PowerShell modules and temp directories
+      - name: Cache Windows build dependencies
+        if: matrix.os == 'windows'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Temp\zig-*
+            ~\AppData\Local\zig
+          key: windows-deps-${{ hashFiles('build.zig') }}
+          restore-keys: |
+            windows-deps-
+
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.15.1
 
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-${{ matrix.os }}-${{ matrix.target }}-
+            zig-build-${{ matrix.os }}-
+
+      # Windows-specific optimizations
+      - name: Configure Windows build environment
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          # Set Windows-specific environment variables for faster builds
+          echo "ZIG_GLOBAL_CACHE_DIR=$env:RUNNER_TEMP\zig-cache" >> $env:GITHUB_ENV
+          echo "ZIG_LOCAL_CACHE_DIR=.zig-cache" >> $env:GITHUB_ENV
+          # Use all available CPU cores
+          echo "ZIG_BUILD_JOBS=$env:NUMBER_OF_PROCESSORS" >> $env:GITHUB_ENV
+
       - name: Build for ${{ matrix.target }}
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
+        run: |
+          ${{ matrix.os == 'windows' && 'zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe --parallel' || 'zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe' }}
 
       - name: Copy artifact (Unix)
         if: matrix.os != 'windows'
@@ -57,7 +101,12 @@ jobs:
 
       - name: Copy artifact (Windows)
         if: matrix.os == 'windows'
-        run: copy zig-out\bin\media-gen.exe ${{ matrix.artifact }}
+        shell: pwsh
+        run: |
+          Copy-Item "zig-out\bin\media-gen.exe" "${{ matrix.artifact }}" -Force
+          # Verify the file was created and get its size
+          $fileInfo = Get-Item "${{ matrix.artifact }}"
+          Write-Host "✅ Windows artifact created: $($fileInfo.Length) bytes"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

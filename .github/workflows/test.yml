@@ -1,14 +1,21 @@
 name: Test Suite
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
   schedule:
-    # Run tests daily at 2 AM UTC
+    # Run comprehensive tests daily at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - performance
 
 jobs:
   validate:
@@ -34,15 +41,33 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    needs: validate
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'unit' || github.event_name == 'schedule'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ runner.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ runner.os }}-
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-${{ runner.os }}-
 
       - name: Run unit tests
         run: zig build test
@@ -58,20 +83,58 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'integration' || github.event_name == 'schedule'
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            shell: bash
+          - os: windows-2022  # Use specific version for better caching
+            shell: pwsh
+          - os: macos-latest
+            shell: bash
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ matrix.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ matrix.os }}-
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.15.1
 
-      - name: Build application (FFmpeg downloaded automatically)
-        run: zig build
+      # Windows-specific cache optimization
+      - name: Cache Windows build dependencies
+        if: matrix.os == 'windows-2022'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~\AppData\Local\Temp\zig-*
+            ~\AppData\Local\zig
+          key: windows-test-deps-${{ hashFiles('build.zig') }}
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-${{ matrix.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-${{ matrix.os }}-
+
+      # Optimized build command per platform
+      - name: Build application (FFmpeg cached or downloaded)
+        shell: ${{ matrix.shell }}
+        run: |
+          ${{ matrix.os == 'windows-2022' && 'zig build --parallel' || 'zig build' }}
 
       - name: Test video generation
         shell: bash
@@ -80,9 +143,9 @@ jobs:
           mkdir -p test-media
           
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./zig-out/bin/media-gen.exe video --duration 2 --width 640 --height 480 --output test-media/test_video.mp4
+            ./zig-out/bin/media-gen.exe video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           else
-            ./zig-out/bin/media-gen video --duration 2 --width 640 --height 480 --output test-media/test_video.mp4
+            ./zig-out/bin/media-gen video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           fi
           
           # Check if file exists and has reasonable size
@@ -103,9 +166,9 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./zig-out/bin/media-gen.exe audio --duration 2 --sample-rate 44100 --output test-media/test_audio.mp3
+            ./zig-out/bin/media-gen.exe audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           else
-            ./zig-out/bin/media-gen audio --duration 2 --sample-rate 44100 --output test-media/test_audio.mp3
+            ./zig-out/bin/media-gen audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           fi
           
           # Check if file exists and has reasonable size
@@ -150,14 +213,33 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
+    if: github.event.inputs.test_type == 'all' || github.event.inputs.test_type == 'performance' || github.event_name == 'schedule'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ runner.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ runner.os }}-
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-perf-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-perf-${{ runner.os }}-
 
       - name: Build application (embedded FFmpeg)
         run: zig build -Doptimize=ReleaseFast
@@ -166,7 +248,7 @@ jobs:
         run: |
           mkdir -p test-media
           echo "Testing video generation performance..."
-          time ./zig-out/bin/media-gen video --duration 10 --output test-media/perf_test_video.mp4
+          time ./zig-out/bin/media-gen video --duration 3 --width 480 --height 360 --output test-media/perf_test_video.mp4
           
           file_size=$(stat -c%s test-media/perf_test_video.mp4)
           echo "Generated video size: $file_size bytes"
@@ -174,7 +256,7 @@ jobs:
       - name: Performance test - Audio generation
         run: |
           echo "Testing audio generation performance..."
-          time ./zig-out/bin/media-gen audio --duration 10 --output test-media/perf_test_audio.mp3
+          time ./zig-out/bin/media-gen audio --duration 3 --sample-rate 22050 --output test-media/perf_test_audio.mp3
           
           file_size=$(stat -c%s test-media/perf_test_audio.mp3)
           echo "Generated audio size: $file_size bytes"

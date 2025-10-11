@@ -77,10 +77,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache FFmpeg binaries
+        uses: actions/cache@v4
+        with:
+          path: src/vendor/ffmpeg
+          key: ffmpeg-binaries-${{ matrix.os }}-v1
+          restore-keys: |
+            ffmpeg-binaries-${{ matrix.os }}-
+
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-release-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-release-${{ matrix.os }}-${{ matrix.target }}-
+            zig-build-release-${{ matrix.os }}-
+            zig-build-${{ matrix.os }}-${{ matrix.target }}-
+            zig-build-${{ matrix.os }}-
 
       - name: Build for ${{ matrix.target }}
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe

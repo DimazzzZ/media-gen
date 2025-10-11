@@ -33,7 +33,7 @@ jobs:
       - name: Validate version format
         run: |
           version="${{ github.event.inputs.version }}"
-          if [[! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$]]; then
+          if [[ ! $version =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "❌ Invalid version format: $version"
             echo "Expected format: v1.0.0"
             exit 1
@@ -50,81 +50,9 @@ jobs:
           echo "✅ Tag $version is available"
 
   build:
-    name: Build for ${{ matrix.os }}
-    runs-on: ${{ matrix.runner }}
+    name: Build Release Artifacts
     needs: validate
-    # Continue building other platforms even if one fails
-    continue-on-error: false
-    strategy:
-      fail-fast: false  # Don't cancel other builds if one fails
-      matrix:
-        include:
-          - os: linux
-            runner: ubuntu-latest
-            target: x86_64-linux
-            artifact: media-gen-linux-x86_64
-          - os: windows
-            runner: windows-latest
-            target: x86_64-windows
-            artifact: media-gen-windows-x86_64.exe
-          - os: macos-intel
-            runner: macos-13
-            target: x86_64-macos
-            artifact: media-gen-macos-x86_64
-          - os: macos-arm
-            runner: macos-latest
-            target: aarch64-macos
-            artifact: media-gen-macos-arm64
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Cache FFmpeg binaries
-        uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache service is down
-        with:
-          path: src/vendor/ffmpeg
-          key: ffmpeg-binaries-${{ matrix.os }}-v1
-          restore-keys: |
-            ffmpeg-binaries-${{ matrix.os }}-
-
-      - name: Setup Zig
-        uses: mlugg/setup-zig@v2
-        with:
-          version: 0.15.1
-
-      - name: Cache Zig build
-        uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache service is down
-        with:
-          path: |
-            .zig-cache
-            zig-out
-          key: zig-build-release-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
-          restore-keys: |
-            zig-build-release-${{ matrix.os }}-${{ matrix.target }}-
-            zig-build-release-${{ matrix.os }}-
-            zig-build-${{ matrix.os }}-${{ matrix.target }}-
-            zig-build-${{ matrix.os }}-
-
-      - name: Build for ${{ matrix.target }}
-        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
-
-      - name: Copy artifact (Unix)
-        if: matrix.os != 'windows'
-        run: cp zig-out/bin/media-gen ${{ matrix.artifact }}
-
-      - name: Copy artifact (Windows)
-        if: matrix.os == 'windows'
-        run: copy zig-out\bin\media-gen.exe ${{ matrix.artifact }}
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
-          retention-days: 30
+    uses: ./.github/workflows/build.yml
 
   release:
     name: Create Release
@@ -134,10 +62,34 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download Linux x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: media-gen-linux-x86_64
+          path: ./artifacts/
+
+      - name: Download Windows x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-windows-x86_64
+          path: ./artifacts/
+
+      - name: Download macOS x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-macos-x86_64
+          path: ./artifacts/
+
+      - name: Download macOS ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-macos-arm64
+          path: ./artifacts/
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          ls -la artifacts/
 
       - name: Create release
         uses: softprops/action-gh-release@v2

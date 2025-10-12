@@ -71,7 +71,7 @@ jobs:
       - name: Download Windows x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: media-gen-windows-x86_64
+          name: media-gen-windows-x86_64.exe
           path: ./artifacts/
 
       - name: Download macOS x86_64 artifact

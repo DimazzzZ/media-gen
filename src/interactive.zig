@@ -417,7 +417,7 @@ fn readUserInput(allocator: std.mem.Allocator) ![]u8 {
 
         const success = std.os.windows.kernel32.ReadFile(
             stdin_handle,
-            buffer.ptr,
+            &buffer,
             buffer.len,
             &bytes_read,
             null,

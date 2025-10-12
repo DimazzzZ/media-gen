@@ -407,14 +407,42 @@ fn freeConfig(allocator: std.mem.Allocator, config: *const InteractiveConfig) vo
 }
 
 fn readUserInput(allocator: std.mem.Allocator) ![]u8 {
-    var buffer: [1024]u8 = undefined;
-    const bytes_read = try std.posix.read(@as(std.posix.fd_t, 0), buffer[0..]);
+    const builtin = @import("builtin");
 
-    if (bytes_read > 0) {
-        // Remove trailing newline if present
-        const end = if (buffer[bytes_read - 1] == '\n') bytes_read - 1 else bytes_read;
-        return try allocator.dupe(u8, buffer[0..end]);
+    if (builtin.os.tag == .windows) {
+        // Windows-specific implementation
+        const stdin_handle = std.os.windows.GetStdHandle(std.os.windows.STD_INPUT_HANDLE) catch return error.StdinUnavailable;
+        var buffer: [1024]u8 = undefined;
+        var bytes_read: std.os.windows.DWORD = undefined;
+
+        const success = std.os.windows.kernel32.ReadFile(
+            stdin_handle,
+            buffer.ptr,
+            buffer.len,
+            &bytes_read,
+            null,
+        );
+
+        if (success == 0) return error.ReadFailed;
+
+        if (bytes_read > 0) {
+            // Remove trailing newline if present
+            const end = if (buffer[bytes_read - 1] == '\n') bytes_read - 1 else bytes_read;
+            return try allocator.dupe(u8, buffer[0..end]);
+        } else {
+            return try allocator.dupe(u8, "");
+        }
     } else {
-        return try allocator.dupe(u8, "");
+        // Unix-like systems
+        var buffer: [1024]u8 = undefined;
+        const bytes_read = try std.posix.read(@as(std.posix.fd_t, 0), buffer[0..]);
+
+        if (bytes_read > 0) {
+            // Remove trailing newline if present
+            const end = if (buffer[bytes_read - 1] == '\n') bytes_read - 1 else bytes_read;
+            return try allocator.dupe(u8, buffer[0..end]);
+        } else {
+            return try allocator.dupe(u8, "");
+        }
     }
 }

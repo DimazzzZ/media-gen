@@ -4,7 +4,13 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // This build always uses embedded FFmpeg
+    // Build option: -Dno-embed-ffmpeg=true to build without embedded FFmpeg
+    const no_embed_ffmpeg = b.option(bool, "no-embed-ffmpeg", "Build without embedded FFmpeg (standalone edition)") orelse false;
+    const embed_ffmpeg = !no_embed_ffmpeg;
+
+    // Create build options module
+    const build_options = b.addOptions();
+    build_options.addOption(bool, "embed_ffmpeg", embed_ffmpeg);
 
     // Create root module
     const root_module = b.createModule(.{
@@ -13,16 +19,23 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Add build options as import
+    root_module.addImport("build_options", build_options.createModule());
+
     const exe = b.addExecutable(.{
-        .name = "media-gen",
+        .name = if (embed_ffmpeg) "media-gen" else "media-gen-standalone",
         .root_module = root_module,
     });
 
     // Link system libraries
     exe.linkLibC();
 
-    // Always build with embedded FFmpeg
-    setupEmbeddedFFmpegBuild(b, exe, target);
+    // Only download/setup FFmpeg binaries if embedding
+    if (embed_ffmpeg) {
+        setupEmbeddedFFmpegBuild(b, exe, target);
+    } else {
+        std.log.info("Building standalone edition (no embedded FFmpeg)", .{});
+    }
 
     b.installArtifact(exe);
 
@@ -46,6 +59,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    test_module.addImport("build_options", build_options.createModule());
 
     const test_exe = b.addTest(.{
         .root_module = test_module,
@@ -60,6 +74,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    integration_test_module.addImport("build_options", build_options.createModule());
 
     const integration_test_exe = b.addTest(.{
         .root_module = integration_test_module,
@@ -133,5 +148,5 @@ fn setupEmbeddedFFmpegBuild(b: *std.Build, exe: *std.Build.Step.Compile, target:
         std.log.info("FFmpeg binaries downloaded successfully", .{});
     };
 
-    std.log.info("Building with embedded FFmpeg binaries", .{});
+    std.log.info("Building bundled edition with embedded FFmpeg binaries", .{});
 }

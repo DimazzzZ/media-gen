@@ -2,6 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 const video_gen = @import("generators/video.zig");
 const audio_gen = @import("generators/audio.zig");
+const ffmpeg = @import("ffmpeg.zig");
 
 pub const MediaType = enum {
     video,
@@ -30,7 +31,7 @@ pub const AudioConfig = struct {
 };
 
 pub fn printHelp() !void {
-    print("Media Generator - Embedded FFmpeg Edition\n", .{});
+    print("Media Generator - {s}\n", .{ffmpeg.getBuildInfo()});
     print("Usage: media-gen <command> [options]\n\n", .{});
     print("Commands:\n", .{});
     print("  video        Generate video file with countdown timer\n", .{});
@@ -58,7 +59,12 @@ pub fn printHelp() !void {
     print("  media-gen video --width 1280 --height 720 --duration 60 --output test.mp4\n", .{});
     print("  media-gen audio --bitrate 320k --duration 120 --format wav --output test.wav\n", .{});
     print("  media-gen audio --frequency 880 --sample-rate 48000 --output tone.wav\n", .{});
-    print("\nNote: FFmpeg is embedded - no external installation required!\n", .{});
+    if (ffmpeg.isEmbedded()) {
+        print("\nNote: FFmpeg is embedded - no external installation required!\n", .{});
+    } else {
+        print("\nNote: This is the standalone edition - FFmpeg must be installed on your system.\n", .{});
+        print("      Install FFmpeg: brew install ffmpeg (macOS) | apt install ffmpeg (Linux) | choco install ffmpeg (Windows)\n", .{});
+    }
 }
 
 pub fn parseAndExecute(allocator: std.mem.Allocator, args: [][:0]u8) !void {

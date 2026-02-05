@@ -1,27 +1,42 @@
 const std = @import("std");
-const print = std.debug.print;
 const cli = @import("../cli.zig");
 const ffmpeg = @import("../ffmpeg.zig");
 
-pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) !void {
-    try generateWithProgress(allocator, config, false);
+/// Error types for audio generation.
+pub const AudioGenError = error{
+    FFmpegNotFound,
+    FFmpegExecutionFailed,
+    FFmpegEncodingFailed,
+    OutOfMemory,
+};
+
+/// Generates an audio file with the specified configuration.
+/// This is a convenience wrapper around `generateWithProgress` with progress disabled.
+pub fn generate(allocator: std.mem.Allocator, config: cli.AudioConfig) AudioGenError!void {
+    return generateWithProgress(allocator, config, false);
 }
 
-pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.AudioConfig, show_progress: bool) !void {
-    print("Generating audio with parameters:\n", .{});
-    print("  Duration: {}s\n", .{config.duration});
-    print("  Sample rate: {}Hz\n", .{config.sample_rate});
-    print("  Bitrate: {s}\n", .{config.bitrate});
-    print("  Format: {s}\n", .{config.format});
-    print("  Codec: {s}\n", .{config.codec});
-    print("  Output: {s}\n", .{config.output});
+/// Generates an audio file with the specified configuration.
+/// If `show_progress` is true, displays progress information during encoding.
+pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.AudioConfig, show_progress: bool) AudioGenError!void {
+    std.debug.print("Generating audio with parameters:\n", .{});
+    std.debug.print("  Duration: {d}s\n", .{config.duration});
+    std.debug.print("  Sample rate: {d}Hz\n", .{config.sample_rate});
+    std.debug.print("  Bitrate: {s}\n", .{config.bitrate});
+    std.debug.print("  Format: {s}\n", .{config.format});
+    std.debug.print("  Codec: {s}\n", .{config.codec});
+    std.debug.print("  Output: {s}\n", .{config.output});
 
     // Create test tone filter
-    const filter = try std.fmt.allocPrint(allocator, "sine=frequency=1000:sample_rate={}:duration={}", .{ config.sample_rate, config.duration });
+    const filter = std.fmt.allocPrint(allocator, "sine=frequency=1000:sample_rate={d}:duration={d}", .{ config.sample_rate, config.duration }) catch {
+        return AudioGenError.OutOfMemory;
+    };
     defer allocator.free(filter);
 
     // Sample rate string
-    const sample_rate_str = try std.fmt.allocPrint(allocator, "{}", .{config.sample_rate});
+    const sample_rate_str = std.fmt.allocPrint(allocator, "{d}", .{config.sample_rate}) catch {
+        return AudioGenError.OutOfMemory;
+    };
     defer allocator.free(sample_rate_str);
 
     // Auto-select codec based on format if using default codec
@@ -38,9 +53,9 @@ pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.AudioConfi
     } else config.codec;
 
     // Get FFmpeg path (system or embedded)
-    const ffmpeg_path = ffmpeg.getFFmpegPath(allocator) catch |err| {
-        print("Error: Cannot find or extract FFmpeg: {}\n", .{err});
-        return;
+    const ffmpeg_path = ffmpeg.getFFmpegPath(allocator) catch {
+        std.debug.print("Error: Cannot find or extract FFmpeg\n", .{});
+        return AudioGenError.FFmpegNotFound;
     };
     defer allocator.free(ffmpeg_path);
 
@@ -83,28 +98,37 @@ pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.AudioConfi
 
     // Execute FFmpeg command
     if (show_progress) {
-        print("🎵 Running FFmpeg encoder...\n", .{});
-        print("⏳ Please wait, encoding {d}s audio...\n", .{config.duration});
+        std.debug.print("🎵 Running FFmpeg encoder...\n", .{});
+        std.debug.print("⏳ Please wait, encoding {d}s audio...\n", .{config.duration});
     }
 
     // Run FFmpeg
     const result = std.process.Child.run(.{
         .allocator = allocator,
         .argv = cmd_args,
-    }) catch |err| {
-        print("Error executing FFmpeg: {}\n", .{err});
-        return;
+    }) catch {
+        std.debug.print("Error executing FFmpeg\n", .{});
+        return AudioGenError.FFmpegExecutionFailed;
     };
 
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
-    if (result.term.Exited == 0) {
-        print("✅ Audio generated successfully: {s}\n", .{config.output});
-    } else {
-        print("❌ FFmpeg failed with exit code: {}\n", .{result.term.Exited});
-        if (result.stderr.len > 0) {
-            print("Error output: {s}\n", .{result.stderr});
-        }
+    switch (result.term) {
+        .Exited => |code| {
+            if (code == 0) {
+                std.debug.print("✅ Audio generated successfully: {s}\n", .{config.output});
+            } else {
+                std.debug.print("❌ FFmpeg failed with exit code: {d}\n", .{code});
+                if (result.stderr.len > 0) {
+                    std.debug.print("Error output: {s}\n", .{result.stderr});
+                }
+                return AudioGenError.FFmpegEncodingFailed;
+            }
+        },
+        else => {
+            std.debug.print("❌ FFmpeg process terminated abnormally\n", .{});
+            return AudioGenError.FFmpegEncodingFailed;
+        },
     }
 }

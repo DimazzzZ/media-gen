@@ -1,5 +1,15 @@
+//! Build configuration for media-gen.
+//!
+//! This build script supports two editions:
+//! - Bundled Edition (default): FFmpeg binaries are embedded in the executable
+//! - Standalone Edition: Requires system-installed FFmpeg
+//!
+//! Build options:
+//! - `-Dno-embed-ffmpeg=true`: Build standalone edition without embedded FFmpeg
+
 const std = @import("std");
 
+/// Main build function called by the Zig build system.
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -32,7 +42,7 @@ pub fn build(b: *std.Build) void {
 
     // Only download/setup FFmpeg binaries if embedding
     if (embed_ffmpeg) {
-        setupEmbeddedFFmpegBuild(b, exe, target);
+        setupEmbeddedFFmpegBuild(b);
     } else {
         std.log.info("Building standalone edition (no embedded FFmpeg)", .{});
     }
@@ -84,11 +94,9 @@ pub fn build(b: *std.Build) void {
     integration_test_step.dependOn(&run_integration_test.step);
 }
 
-fn setupEmbeddedFFmpegBuild(b: *std.Build, exe: *std.Build.Step.Compile, target: std.Build.ResolvedTarget) void {
-    _ = exe;
-    _ = target;
-
-    // Check if FFmpeg binaries exist, download if not
+/// Sets up the build for embedded FFmpeg.
+/// Downloads FFmpeg binaries if they don't exist in the vendor directory.
+fn setupEmbeddedFFmpegBuild(b: *std.Build) void {
     const vendor_dir = "src/vendor/ffmpeg";
     std.fs.cwd().access(vendor_dir, .{}) catch {
         std.log.info("FFmpeg binaries not found, downloading...", .{});

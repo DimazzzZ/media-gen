@@ -1,7 +1,12 @@
+//! Media Generator - A CLI tool for generating test video and audio files.
+//!
+//! This is the main entry point for the application. It parses command-line
+//! arguments and dispatches to the appropriate generator or interactive mode.
+
 const std = @import("std");
-const print = std.debug.print;
 const cli = @import("cli.zig");
 
+/// Main entry point for the media-gen application.
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();

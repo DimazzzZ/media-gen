@@ -10,8 +10,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  quick-tests:
-    name: Quick Tests
+  # ==========================================================================
+  # Quick Tests - Bundled Edition (with embedded FFmpeg)
+  # ==========================================================================
+  quick-tests-bundled:
+    name: Quick Tests - Bundled Edition
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     steps:
@@ -37,18 +40,18 @@ jobs:
           path: |
             .zig-cache
             zig-out
-          key: zig-build-quick-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          key: zig-build-quick-bundled-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
           restore-keys: |
+            zig-build-quick-bundled-${{ runner.os }}-
             zig-build-quick-${{ runner.os }}-
-            zig-build-${{ runner.os }}-
 
-      - name: Run unit tests
+      - name: Run unit tests (bundled)
         run: zig build test
 
-      - name: Quick build test
+      - name: Quick build test (bundled)
         run: zig build
 
-      - name: Quick functionality test
+      - name: Quick functionality test (bundled)
         run: |
           mkdir -p test-media
           # Very quick tests - 1 second duration, small resolution
@@ -67,4 +70,63 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Quick tests passed"
+          echo "✅ Bundled edition quick tests passed"
+
+  # ==========================================================================
+  # Quick Tests - Standalone Edition (requires system FFmpeg)
+  # ==========================================================================
+  quick-tests-standalone:
+    name: Quick Tests - Standalone Edition
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install system FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-quick-standalone-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-quick-standalone-${{ runner.os }}-
+
+      - name: Run unit tests (standalone)
+        run: zig build test -Dno-embed-ffmpeg=true
+
+      - name: Quick build test (standalone)
+        run: zig build -Dno-embed-ffmpeg=true
+
+      - name: Quick functionality test (standalone)
+        run: |
+          mkdir -p test-media
+          # Very quick tests - 1 second duration, small resolution
+          ./zig-out/bin/media-gen-standalone video --duration 1 --width 160 --height 120 --output test-media/quick_video.mp4
+          ./zig-out/bin/media-gen-standalone audio --duration 1 --sample-rate 8000 --output test-media/quick_audio.mp3
+          ./zig-out/bin/media-gen-standalone help
+
+          # Verify files exist and have reasonable size
+          if [[ ! -f test-media/quick_video.mp4 ]] || [[ $(stat -c%s test-media/quick_video.mp4) -lt 100 ]]; then
+            echo "Video test failed"
+            exit 1
+          fi
+
+          if [[ ! -f test-media/quick_audio.mp3 ]] || [[ $(stat -c%s test-media/quick_audio.mp3) -lt 100 ]]; then
+            echo "Audio test failed"
+            exit 1
+          fi
+
+          echo "✅ Standalone edition quick tests passed"

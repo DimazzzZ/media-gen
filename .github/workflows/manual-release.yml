@@ -62,63 +62,116 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Linux x86_64 artifact
+      # Download Bundled Edition artifacts
+      - name: Download Bundled Linux x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: media-gen-linux-x86_64
-          path: ./artifacts/
+          name: media-gen-bundled-linux-x86_64
+          path: ./artifacts/bundled/
 
-      - name: Download Windows x86_64 artifact
+      - name: Download Bundled Windows x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: media-gen-windows-x86_64.exe
-          path: ./artifacts/
+          name: media-gen-bundled-windows-x86_64.exe
+          path: ./artifacts/bundled/
 
-      - name: Download macOS x86_64 artifact
+      - name: Download Bundled macOS x86_64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: media-gen-macos-x86_64
-          path: ./artifacts/
+          name: media-gen-bundled-macos-x86_64
+          path: ./artifacts/bundled/
 
-      - name: Download macOS ARM64 artifact
+      - name: Download Bundled macOS ARM64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: media-gen-macos-arm64
-          path: ./artifacts/
+          name: media-gen-bundled-macos-arm64
+          path: ./artifacts/bundled/
+
+      # Download Standalone Edition artifacts
+      - name: Download Standalone Linux x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-standalone-linux-x86_64
+          path: ./artifacts/standalone/
+
+      - name: Download Standalone Windows x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-standalone-windows-x86_64.exe
+          path: ./artifacts/standalone/
+
+      - name: Download Standalone macOS x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-standalone-macos-x86_64
+          path: ./artifacts/standalone/
+
+      - name: Download Standalone macOS ARM64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: media-gen-standalone-macos-arm64
+          path: ./artifacts/standalone/
 
       - name: List downloaded artifacts
         run: |
           echo "Downloaded artifacts:"
-          ls -la artifacts/
+          echo "=== Bundled Edition ==="
+          ls -la artifacts/bundled/
+          echo "=== Standalone Edition ==="
+          ls -la artifacts/standalone/
 
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.version }}
-          name: "Media Generator ${{ github.event.inputs.version }} - Embedded FFmpeg Edition"
+          name: "Media Generator ${{ github.event.inputs.version }}"
           draft: ${{ github.event.inputs.draft }}
           prerelease: ${{ github.event.inputs.prerelease }}
-          files: artifacts/**/*
+          files: |
+            artifacts/bundled/*
+            artifacts/standalone/*
           body: |
-            ## Media Generator - Embedded FFmpeg Edition
+            ## Media Generator ${{ github.event.inputs.version }}
+
+            ### 📦 Two Editions Available
+
+            | Edition | Description | Size | Dependencies |
+            |---------|-------------|------|--------------|
+            | **Bundled** | FFmpeg embedded in binary | ~80MB+ | None |
+            | **Standalone** | Uses system FFmpeg | ~1MB | Requires FFmpeg |
+
+            ---
+
+            ### 🚀 Bundled Edition (Recommended for most users)
 
             **No external dependencies required!** FFmpeg is embedded directly into the executable.
 
-            ### 🚀 What's New in ${{ github.event.inputs.version }}
+            | Platform | Download |
+            |----------|----------|
+            | **Linux x86_64** | `media-gen-bundled-linux-x86_64` |
+            | **Windows x86_64** | `media-gen-bundled-windows-x86_64.exe` |
+            | **macOS Intel** | `media-gen-bundled-macos-x86_64` |
+            | **macOS ARM64** | `media-gen-bundled-macos-arm64` |
 
-            - Embedded FFmpeg binaries for all platforms
-            - Zero external dependencies
-            - Cross-platform support (Linux, Windows, macOS Intel/ARM)
-            - Improved error handling and logging
+            ---
 
-            ### 📥 Downloads
+            ### 🔧 Standalone Edition (For users who have FFmpeg installed)
+
+            **Smaller binary size!** Requires FFmpeg to be installed on your system.
 
             | Platform | Download |
             |----------|----------|
-            | **Linux x86_64** | `media-gen-linux-x86_64` |
-            | **Windows x86_64** | `media-gen-windows-x86_64.exe` |
-            | **macOS Intel** | `media-gen-macos-x86_64` |
-            | **macOS ARM64** | `media-gen-macos-arm64` |
+            | **Linux x86_64** | `media-gen-standalone-linux-x86_64` |
+            | **Windows x86_64** | `media-gen-standalone-windows-x86_64.exe` |
+            | **macOS Intel** | `media-gen-standalone-macos-x86_64` |
+            | **macOS ARM64** | `media-gen-standalone-macos-arm64` |
+
+            **Installing FFmpeg:**
+            - macOS: `brew install ffmpeg`
+            - Linux: `apt install ffmpeg` or `dnf install ffmpeg`
+            - Windows: `choco install ffmpeg` or `winget install ffmpeg`
+
+            ---
 
             ### 🛠️ Usage
 
@@ -138,16 +191,13 @@ jobs:
             - 🎬 **Video generation** with animated countdown timer
             - 🎵 **Audio generation** with configurable sine wave test tones
             - 🎯 **Multiple formats**: MP4, AVI, MOV, MKV, MP3, WAV, AAC, FLAC
-            - 📦 **Zero dependencies** - FFmpeg embedded
-            - 🚀 **Cross-platform** support
+            - 🚀 **Cross-platform** support (Linux, Windows, macOS Intel/ARM)
             - ⚡ **Fast** - Built with Zig for optimal performance
 
             ### 🔧 Installation
 
-            1. Download the appropriate binary for your platform
+            1. Download the appropriate binary for your platform and preferred edition
             2. Make it executable: `chmod +x media-gen-*` (Unix systems)
-            3. Run: `./media-gen help`
-
-            No additional setup required!
+            3. Run: `./media-gen-* help`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

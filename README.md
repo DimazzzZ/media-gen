@@ -2,7 +2,9 @@
 
 A fast, cross-platform command-line utility for generating test media files with customizable parameters. Perfect for testing applications, creating placeholder content, or generating media samples.
 
-**No external dependencies required** - FFmpeg is embedded directly into the executable!
+**Available in two editions:**
+- 🎁 **Bundled Edition** - FFmpeg embedded, zero dependencies, works offline
+- 🪶 **Standalone Edition** - Lightweight, uses system FFmpeg
 
 [![Build and Test](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/build.yml)
 [![Test Suite](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml/badge.svg)](https://github.com/DimazzzZ/media-gen/actions/workflows/test.yml)
@@ -30,11 +32,13 @@ Download the latest release for your platform:
 
 ### Requirements
 
-**None!** FFmpeg is embedded directly into the executable.
-
+**Bundled Edition:** None! FFmpeg is embedded directly into the executable.
 - No external dependencies to install
-- No system configuration required
+- No system configuration required  
 - Works out of the box on all supported platforms
+
+**Standalone Edition:** Requires FFmpeg installed on your system.
+- Install via: `brew install ffmpeg` (macOS) | `apt install ffmpeg` (Linux) | `choco install ffmpeg` (Windows)
 
 ### Basic Usage
 
@@ -202,16 +206,20 @@ Create test audio files with sine wave tones:
 
 ### Prerequisites
 - [Zig 0.15+](https://ziglang.org/download/)
-- Internet connection (for automatic FFmpeg download)
+- Internet connection (for automatic FFmpeg download, bundled edition only)
 
 ### Build Commands
+
 ```bash
 # Clone the repository
 git clone https://github.com/DimazzzZ/media-gen.git
 cd media-gen
 
-# Build for your platform (FFmpeg downloaded automatically)
+# Build Bundled Edition (default) - FFmpeg embedded, larger binary
 zig build
+
+# Build Standalone Edition - no FFmpeg embedded, smaller binary
+zig build -Dno-embed-ffmpeg=true
 
 # Run tests
 zig build test
@@ -221,10 +229,40 @@ zig build test-integration
 ./build-all.sh
 ```
 
-**Note:** FFmpeg binaries are downloaded automatically during the first build. No manual installation required!
+**Note:** For the bundled edition, FFmpeg binaries are downloaded automatically during the first build. No manual installation required!
+
+### Build Editions Comparison
+
+| Feature | Bundled Edition | Standalone Edition |
+|---------|-----------------|-------------------|
+| **Binary Name** | `media-gen` | `media-gen-standalone` |
+| **Binary Size** | ~80-150 MB | ~1-2 MB |
+| **FFmpeg Required** | No (embedded) | Yes (system install) |
+| **Offline Usage** | ✅ Full support | ❌ Requires FFmpeg |
+| **Portability** | ✅ Single file | ⚠️ Depends on system |
+| **Build Time** | Longer (downloads FFmpeg) | Faster |
+| **Best For** | Distribution, CI/CD, portable use | Systems with FFmpeg, dev environments |
+
+#### When to Choose Each Edition
+
+**Choose Bundled Edition when:**
+- You need a single portable executable
+- Deploying to systems without FFmpeg installed
+- Running in containerized/sandboxed environments
+- Distributing to end users
+- Offline usage is required
+
+**Choose Standalone Edition when:**
+- You already have FFmpeg installed
+- You want the smallest possible binary
+- You're in a development environment
+- You need the latest FFmpeg features
+- Disk space is a concern
 
 ### Cross-compilation
+
 ```bash
+# Bundled Edition (default)
 # Windows
 zig build -Dtarget=x86_64-windows -Doptimize=ReleaseSafe
 
@@ -234,6 +272,9 @@ zig build -Dtarget=aarch64-macos -Doptimize=ReleaseSafe
 
 # Linux
 zig build -Dtarget=x86_64-linux -Doptimize=ReleaseSafe
+
+# Standalone Edition (add -Dno-embed-ffmpeg=true)
+zig build -Dtarget=x86_64-linux -Doptimize=ReleaseSafe -Dno-embed-ffmpeg=true
 ```
 
 ## 🤝 Contributing
@@ -285,13 +326,30 @@ zig build test
 
 ### Common Issues
 
-**FFmpeg not found**
+**FFmpeg not found (Standalone Edition only)**
 ```bash
 # Check if FFmpeg is installed
 ffmpeg -version
 
-# Install FFmpeg if missing (see Requirements section)
+# Install FFmpeg
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt install ffmpeg
+
+# Windows (with Chocolatey)
+choco install ffmpeg
+
+# Windows (with Scoop)
+scoop install ffmpeg
 ```
+
+**"No such filter: drawtext" error**
+
+This error occurs when FFmpeg was compiled without libfreetype support. Solutions:
+1. Use the **Bundled Edition** which includes full FFmpeg with all filters
+2. Install a full-featured FFmpeg: `brew install ffmpeg` (macOS includes drawtext by default)
 
 **Permission denied**
 ```bash

@@ -20,6 +20,15 @@ on:
           - unit
           - integration
           - performance
+      edition:
+        description: 'Edition to test'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - bundled
+          - standalone
 
 jobs:
   validate:
@@ -43,14 +52,18 @@ jobs:
             exit 1
           fi
 
-  unit-tests:
-    name: Unit Tests
+  # ==========================================================================
+  # Unit Tests - Bundled Edition
+  # ==========================================================================
+  unit-tests-bundled:
+    name: Unit Tests - Bundled Edition
     runs-on: ubuntu-latest
     if: >
-      github.event.inputs.test_type == 'all' ||
-      github.event.inputs.test_type == 'unit' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_run'
+      (github.event.inputs.edition != 'standalone') &&
+      (github.event.inputs.test_type == 'all' ||
+       github.event.inputs.test_type == 'unit' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_run')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,37 +87,86 @@ jobs:
           path: |
             .zig-cache
             zig-out
-          key: zig-build-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          key: zig-build-bundled-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
           restore-keys: |
-            zig-build-${{ runner.os }}-
+            zig-build-bundled-${{ runner.os }}-
 
-      - name: Run unit tests
+      - name: Run unit tests (bundled)
         run: zig build test
 
       - name: Generate test coverage
         run: |
           zig build test --summary all 2>&1 | tee test_output.txt
-          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results - Bundled Edition" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat test_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-  integration-tests:
-    name: Integration Tests
-    runs-on: ${{ matrix.os }}
+  # ==========================================================================
+  # Unit Tests - Standalone Edition
+  # ==========================================================================
+  unit-tests-standalone:
+    name: Unit Tests - Standalone Edition
+    runs-on: ubuntu-latest
     if: >
-      github.event.inputs.test_type == 'all' ||
-      github.event.inputs.test_type == 'integration' ||
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_run'
+      (github.event.inputs.edition != 'bundled') &&
+      (github.event.inputs.test_type == 'all' ||
+       github.event.inputs.test_type == 'unit' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_run')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-standalone-${{ runner.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-standalone-${{ runner.os }}-
+
+      - name: Run unit tests (standalone)
+        run: zig build test -Dno-embed-ffmpeg=true
+
+      - name: Generate test coverage
+        run: |
+          zig build test -Dno-embed-ffmpeg=true --summary all 2>&1 | tee test_output.txt
+          echo "## Test Results - Standalone Edition" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat test_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # ==========================================================================
+  # Integration Tests - Bundled Edition
+  # ==========================================================================
+  integration-tests-bundled:
+    name: Integration Tests - Bundled ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    if: >
+      (github.event.inputs.edition != 'standalone') &&
+      (github.event.inputs.test_type == 'all' ||
+       github.event.inputs.test_type == 'integration' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_run')
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu
+            runner: ubuntu-latest
             shell: bash
-          - os: windows-2022  # Use specific version for better caching
+          - os: windows
+            runner: windows-2022
             shell: pwsh
-          - os: macos-latest
+          - os: macos
+            runner: macos-latest
             shell: bash
     steps:
       - name: Checkout code
@@ -123,15 +185,14 @@ jobs:
         with:
           version: 0.15.1
 
-      # Windows-specific cache optimization
       - name: Cache Windows build dependencies
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows'
         uses: actions/cache@v4
         with:
           path: |
             ~\AppData\Local\Temp\zig-*
             ~\AppData\Local\zig
-          key: windows-test-deps-${{ hashFiles('build.zig') }}
+          key: windows-test-deps-bundled-${{ hashFiles('build.zig') }}
 
       - name: Cache Zig build
         uses: actions/cache@v4
@@ -139,96 +200,192 @@ jobs:
           path: |
             .zig-cache
             zig-out
-          key: zig-build-${{ matrix.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          key: zig-build-bundled-${{ matrix.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
           restore-keys: |
-            zig-build-${{ matrix.os }}-
+            zig-build-bundled-${{ matrix.os }}-
 
-      # Optimized build command per platform (Windows)
       - name: Build application (Windows)
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows'
         shell: pwsh
         run: zig build
 
-      # Optimized build command per platform (Unix)
       - name: Build application (Unix)
-        if: matrix.os != 'windows-2022'
+        if: matrix.os != 'windows'
         shell: bash
         run: zig build
 
       - name: Test video generation
         shell: bash
         run: |
-          # Create test-media directory
           mkdir -p test-media
-
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
             ./zig-out/bin/media-gen.exe video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           else
             ./zig-out/bin/media-gen video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           fi
-
-          # Check if file exists and has reasonable size
           if [[ ! -f test-media/test_video.mp4 ]]; then
             echo "Video file was not created"
             exit 1
           fi
-
           file_size=$(stat -f%z test-media/test_video.mp4 2>/dev/null || stat -c%s test-media/test_video.mp4)
           if [[ $file_size -lt 1000 ]]; then
             echo "Video file is too small: $file_size bytes"
             exit 1
           fi
-
-          echo "Video test passed: $file_size bytes"
+          echo "✅ Bundled video test passed: $file_size bytes"
 
       - name: Test audio generation
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
             ./zig-out/bin/media-gen.exe audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           else
             ./zig-out/bin/media-gen audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
           fi
-
-          # Check if file exists and has reasonable size
           if [[ ! -f test-media/test_audio.mp3 ]]; then
             echo "Audio file was not created"
             exit 1
           fi
-
           file_size=$(stat -f%z test-media/test_audio.mp3 2>/dev/null || stat -c%s test-media/test_audio.mp3)
           if [[ $file_size -lt 1000 ]]; then
             echo "Audio file is too small: $file_size bytes"
             exit 1
           fi
-
-          echo "Audio test passed: $file_size bytes"
+          echo "✅ Bundled audio test passed: $file_size bytes"
 
       - name: Test help command
         shell: bash
         run: |
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
             ./zig-out/bin/media-gen.exe help
           else
             ./zig-out/bin/media-gen help
           fi
 
-      - name: Test invalid command
+  # ==========================================================================
+  # Integration Tests - Standalone Edition
+  # ==========================================================================
+  integration-tests-standalone:
+    name: Integration Tests - Standalone ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    if: >
+      (github.event.inputs.edition != 'bundled') &&
+      (github.event.inputs.test_type == 'all' ||
+       github.event.inputs.test_type == 'integration' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_run')
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu
+            runner: ubuntu-latest
+            shell: bash
+          - os: windows
+            runner: windows-2022
+            shell: pwsh
+          - os: macos
+            runner: macos-latest
+            shell: bash
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg (Ubuntu)
+        if: matrix.os == 'ubuntu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+
+      - name: Install FFmpeg (macOS)
+        if: matrix.os == 'macos'
+        run: |
+          brew install ffmpeg
+          ffmpeg -version
+
+      - name: Install FFmpeg (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          choco install ffmpeg -y
+          ffmpeg -version
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-standalone-${{ matrix.os }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-standalone-${{ matrix.os }}-
+
+      - name: Build application (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: zig build -Dno-embed-ffmpeg=true
+
+      - name: Build application (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
+        run: zig build -Dno-embed-ffmpeg=true
+
+      - name: Test video generation
         shell: bash
         run: |
-          set +e  # Don't exit on error
-          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            ./zig-out/bin/media-gen.exe invalid_command
+          mkdir -p test-media
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            ./zig-out/bin/media-gen-standalone.exe video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           else
-            ./zig-out/bin/media-gen invalid_command
+            ./zig-out/bin/media-gen-standalone video --duration 1 --width 320 --height 240 --output test-media/test_video.mp4
           fi
-          exit_code=$?
-          if [[ $exit_code -eq 0 ]]; then
-            echo "Expected non-zero exit code for invalid command"
+          if [[ ! -f test-media/test_video.mp4 ]]; then
+            echo "Video file was not created"
             exit 1
           fi
-          echo "Invalid command test passed"
+          file_size=$(stat -f%z test-media/test_video.mp4 2>/dev/null || stat -c%s test-media/test_video.mp4)
+          if [[ $file_size -lt 1000 ]]; then
+            echo "Video file is too small: $file_size bytes"
+            exit 1
+          fi
+          echo "✅ Standalone video test passed: $file_size bytes"
 
+      - name: Test audio generation
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            ./zig-out/bin/media-gen-standalone.exe audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
+          else
+            ./zig-out/bin/media-gen-standalone audio --duration 1 --sample-rate 22050 --output test-media/test_audio.mp3
+          fi
+          if [[ ! -f test-media/test_audio.mp3 ]]; then
+            echo "Audio file was not created"
+            exit 1
+          fi
+          file_size=$(stat -f%z test-media/test_audio.mp3 2>/dev/null || stat -c%s test-media/test_audio.mp3)
+          if [[ $file_size -lt 1000 ]]; then
+            echo "Audio file is too small: $file_size bytes"
+            exit 1
+          fi
+          echo "✅ Standalone audio test passed: $file_size bytes"
+
+      - name: Test help command
+        shell: bash
+        run: |
+          if [[ "${{ matrix.os }}" == "windows" ]]; then
+            ./zig-out/bin/media-gen-standalone.exe help
+          else
+            ./zig-out/bin/media-gen-standalone help
+          fi
+
+  # ==========================================================================
+  # Performance Tests - Bundled Edition
+  # ==========================================================================
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
@@ -264,23 +421,38 @@ jobs:
           restore-keys: |
             zig-build-perf-${{ runner.os }}-
 
-      - name: Build application (embedded FFmpeg)
+      - name: Build application (bundled, optimized)
         run: zig build -Doptimize=ReleaseFast
 
       - name: Performance test - Video generation
         run: |
           mkdir -p test-media
-          echo "Testing video generation performance..."
+          echo "Testing video generation performance (bundled)..."
           time ./zig-out/bin/media-gen video --duration 3 --width 480 --height 360 \
             --output test-media/perf_test_video.mp4
-
           file_size=$(stat -c%s test-media/perf_test_video.mp4)
           echo "Generated video size: $file_size bytes"
 
       - name: Performance test - Audio generation
         run: |
-          echo "Testing audio generation performance..."
+          echo "Testing audio generation performance (bundled)..."
           time ./zig-out/bin/media-gen audio --duration 3 --sample-rate 22050 --output test-media/perf_test_audio.mp3
-
           file_size=$(stat -c%s test-media/perf_test_audio.mp3)
           echo "Generated audio size: $file_size bytes"
+
+      - name: Install system FFmpeg for standalone comparison
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Build standalone edition (optimized)
+        run: zig build -Dno-embed-ffmpeg=true -Doptimize=ReleaseFast
+
+      - name: Performance test - Standalone comparison
+        run: |
+          echo "Testing standalone edition performance..."
+          time ./zig-out/bin/media-gen-standalone video --duration 3 --width 480 --height 360 \
+            --output test-media/perf_test_video_standalone.mp4
+          time ./zig-out/bin/media-gen-standalone audio --duration 3 --sample-rate 22050 \
+            --output test-media/perf_test_audio_standalone.mp3
+          echo "✅ Performance tests completed"

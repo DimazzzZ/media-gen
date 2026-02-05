@@ -12,6 +12,15 @@ on:
         required: false
         default: 'linux,windows,macos'
         type: string
+      editions:
+        description: 'Editions to build'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - bundled
+          - standalone
   workflow_call:  # Allow other workflows to call this one
 
 permissions:
@@ -19,29 +28,32 @@ permissions:
   packages: read
 
 jobs:
-  build:
-    name: Build for ${{ matrix.os }}
+  # ==========================================================================
+  # Bundled Edition (with embedded FFmpeg)
+  # ==========================================================================
+  build-bundled:
+    name: Build Bundled - ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' }}
+    if: ${{ (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && (github.event.inputs.editions != 'standalone') }}
     strategy:
       matrix:
         include:
           - os: linux
             runner: ubuntu-latest
             target: x86_64-linux
-            artifact: media-gen-linux-x86_64
+            artifact: media-gen-bundled-linux-x86_64
           - os: windows
-            runner: windows-2022  # Use specific version for better caching
+            runner: windows-2022
             target: x86_64-windows
-            artifact: media-gen-windows-x86_64.exe
+            artifact: media-gen-bundled-windows-x86_64.exe
           - os: macos-intel
             runner: macos-13
             target: x86_64-macos
-            artifact: media-gen-macos-x86_64
+            artifact: media-gen-bundled-macos-x86_64
           - os: macos-arm
             runner: macos-latest
             target: aarch64-macos
-            artifact: media-gen-macos-arm64
+            artifact: media-gen-bundled-macos-arm64
 
     steps:
       - name: Checkout code
@@ -49,18 +61,17 @@ jobs:
 
       - name: Cache FFmpeg binaries
         uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache service is down
+        continue-on-error: true
         with:
           path: src/vendor/ffmpeg
           key: ffmpeg-binaries-${{ matrix.os }}-v1
           restore-keys: |
             ffmpeg-binaries-${{ matrix.os }}-
 
-      # Windows-specific: Cache PowerShell modules and temp directories
       - name: Cache Windows build dependencies
         if: matrix.os == 'windows'
         uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache service is down
+        continue-on-error: true
         with:
           path: |
             ~\AppData\Local\Temp\zig-*
@@ -69,42 +80,37 @@ jobs:
           restore-keys: |
             windows-deps-
 
-      - name: Setup Zig (with retry)
+      - name: Setup Zig
         uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
-        # Retry setup if it fails due to network issues
-        continue-on-error: false
 
       - name: Cache Zig build
         uses: actions/cache@v4
-        continue-on-error: true  # Don't fail if cache service is down
+        continue-on-error: true
         with:
           path: |
             .zig-cache
             zig-out
-          key: zig-build-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          key: zig-build-bundled-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
           restore-keys: |
-            zig-build-${{ matrix.os }}-${{ matrix.target }}-
-            zig-build-${{ matrix.os }}-
+            zig-build-bundled-${{ matrix.os }}-${{ matrix.target }}-
+            zig-build-bundled-${{ matrix.os }}-
 
-      # Windows-specific optimizations
       - name: Configure Windows build environment
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          # Set Windows-specific environment variables for faster builds
           echo "ZIG_GLOBAL_CACHE_DIR=$env:RUNNER_TEMP\zig-cache" >> $env:GITHUB_ENV
           echo "ZIG_LOCAL_CACHE_DIR=.zig-cache" >> $env:GITHUB_ENV
-          # Use all available CPU cores
           echo "ZIG_BUILD_JOBS=$env:NUMBER_OF_PROCESSORS" >> $env:GITHUB_ENV
 
-      - name: Build for ${{ matrix.target }} (Windows)
+      - name: Build Bundled Edition (Windows)
         if: matrix.os == 'windows'
         shell: pwsh
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
 
-      - name: Build for ${{ matrix.target }} (Unix)
+      - name: Build Bundled Edition (Unix)
         if: matrix.os != 'windows'
         shell: bash
         run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
@@ -118,29 +124,111 @@ jobs:
         shell: pwsh
         run: |
           Copy-Item "zig-out\bin\media-gen.exe" "${{ matrix.artifact }}" -Force
-          # Verify the file was created and get its size
           $fileInfo = Get-Item "${{ matrix.artifact }}"
-          Write-Host "✅ Windows artifact created: $($fileInfo.Length) bytes"
+          Write-Host "✅ Bundled Windows artifact created: $($fileInfo.Length) bytes"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
-        continue-on-error: true  # Don't fail if artifact service is down
+        continue-on-error: true
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
           retention-days: 30
 
-      # Fallback: Store artifact info if upload fails
-      - name: Store artifact info (fallback)
-        if: failure()
-        run: |
-          echo "Artifact upload failed, but build succeeded"
-          echo "Artifact: ${{ matrix.artifact }}"
-          if (Test-Path "${{ matrix.artifact }}") {
-            Get-Item "${{ matrix.artifact }}"
-          } else {
-            Write-Host "Artifact not found"
-          }
-          echo "Build completed successfully despite upload failure" >> build-status.txt
+  # ==========================================================================
+  # Standalone Edition (requires system FFmpeg)
+  # ==========================================================================
+  build-standalone:
+    name: Build Standalone - ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    if: ${{ (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && (github.event.inputs.editions != 'bundled') }}
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            target: x86_64-linux
+            artifact: media-gen-standalone-linux-x86_64
+          - os: windows
+            runner: windows-2022
+            target: x86_64-windows
+            artifact: media-gen-standalone-windows-x86_64.exe
+          - os: macos-intel
+            runner: macos-13
+            target: x86_64-macos
+            artifact: media-gen-standalone-macos-x86_64
+          - os: macos-arm
+            runner: macos-latest
+            target: aarch64-macos
+            artifact: media-gen-standalone-macos-arm64
 
-  # Release job removed - use manual-release.yml workflow instead
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Cache Windows build dependencies
+        if: matrix.os == 'windows'
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            ~\AppData\Local\Temp\zig-*
+            ~\AppData\Local\zig
+          key: windows-deps-standalone-${{ hashFiles('build.zig') }}
+          restore-keys: |
+            windows-deps-standalone-
+
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Cache Zig build
+        uses: actions/cache@v4
+        continue-on-error: true
+        with:
+          path: |
+            .zig-cache
+            zig-out
+          key: zig-build-standalone-${{ matrix.os }}-${{ matrix.target }}-${{ hashFiles('build.zig', 'src/**/*.zig') }}
+          restore-keys: |
+            zig-build-standalone-${{ matrix.os }}-${{ matrix.target }}-
+            zig-build-standalone-${{ matrix.os }}-
+
+      - name: Configure Windows build environment
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          echo "ZIG_GLOBAL_CACHE_DIR=$env:RUNNER_TEMP\zig-cache" >> $env:GITHUB_ENV
+          echo "ZIG_LOCAL_CACHE_DIR=.zig-cache" >> $env:GITHUB_ENV
+          echo "ZIG_BUILD_JOBS=$env:NUMBER_OF_PROCESSORS" >> $env:GITHUB_ENV
+
+      - name: Build Standalone Edition (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: zig build -Dno-embed-ffmpeg=true -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+
+      - name: Build Standalone Edition (Unix)
+        if: matrix.os != 'windows'
+        shell: bash
+        run: zig build -Dno-embed-ffmpeg=true -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+
+      - name: Copy artifact (Unix)
+        if: matrix.os != 'windows'
+        run: cp zig-out/bin/media-gen-standalone ${{ matrix.artifact }}
+
+      - name: Copy artifact (Windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          Copy-Item "zig-out\bin\media-gen-standalone.exe" "${{ matrix.artifact }}" -Force
+          $fileInfo = Get-Item "${{ matrix.artifact }}"
+          Write-Host "✅ Standalone Windows artifact created: $($fileInfo.Length) bytes"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
+          retention-days: 30

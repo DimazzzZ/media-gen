@@ -28,8 +28,9 @@ pub fn generateWithProgress(allocator: std.mem.Allocator, config: cli.VideoConfi
     std.debug.print("  Codec: {s}\n", .{config.codec});
     std.debug.print("  Output: {s}\n", .{config.output});
 
-    // Create input filter with countdown timer - black background with large white numbers
-    const filter = std.fmt.allocPrint(allocator, "color=c=black:size={d}x{d}:duration={d}:rate={d},drawtext=text='%{{eif\\:floor({d}-t)\\:d}}.%{{eif\\:floor((({d}-t)-floor({d}-t))*100)\\:d\\:2}}':fontsize=200:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2", .{ config.width, config.height, config.duration, config.fps, config.duration, config.duration, config.duration }) catch {
+    // Create input filter - animated gradient pattern (works without drawtext filter)
+    // Uses testsrc2 which creates a moving test pattern with frame counter
+    const filter = std.fmt.allocPrint(allocator, "testsrc2=size={d}x{d}:duration={d}:rate={d}", .{ config.width, config.height, config.duration, config.fps }) catch {
         return VideoGenError.OutOfMemory;
     };
     defer allocator.free(filter);

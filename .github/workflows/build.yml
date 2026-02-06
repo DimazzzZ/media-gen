@@ -47,7 +47,7 @@ jobs:
             target: x86_64-windows
             artifact: media-gen-bundled-windows-x86_64.exe
           - os: macos-intel
-            runner: macos-13
+            runner: macos-15-intel
             target: x86_64-macos
             artifact: media-gen-bundled-macos-x86_64
           - os: macos-arm
@@ -154,7 +154,7 @@ jobs:
             target: x86_64-windows
             artifact: media-gen-standalone-windows-x86_64.exe
           - os: macos-intel
-            runner: macos-13
+            runner: macos-15
             target: x86_64-macos
             artifact: media-gen-standalone-macos-x86_64
           - os: macos-arm
